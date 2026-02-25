@@ -11,7 +11,8 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.db import get_session
 from app.models import Certificate, Course, Flashcard, Lesson, PublishLog, Task, Week, StudySession
-from app.services.adaptive_planner import build_next7, build_today_plan
+from app.services.adaptive_planner import build_today_plan
+from app.services.next_best_action import next_best
 from app.services.course_gen import CourseSpec, generate_course_payload, parse_intake
 from app.services.profile_context import resolve_profile_id
 from app.services.publisher import publish_coevo
@@ -154,12 +155,23 @@ def plan_today(course_id: int, request: Request, session: Session = Depends(get_
 
 @router.get("/courses/{course_id}/plan/next7")
 def plan_next7(course_id: int, request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
-    return build_next7(_get_course_owned(session, course_id, resolve_profile_id(session, x_growora_profile, request)), session)
+    course = _get_course_owned(session, course_id, resolve_profile_id(session, x_growora_profile, request))
+    return next_best(session, course)["next7"]
+
+
+@router.get("/courses/{course_id}/plan/next_best")
+def plan_next_best(course_id: int, request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
+    course = _get_course_owned(session, course_id, resolve_profile_id(session, x_growora_profile, request))
+    return next_best(session, course)
 
 
 @router.get("/courses/{course_id}/today")
 def today_alias(course_id: int, request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
-    return plan_today(course_id, request, session, x_growora_profile)
+    course = _get_course_owned(session, course_id, resolve_profile_id(session, x_growora_profile, request))
+    base = build_today_plan(course, session)
+    nb = next_best(session, course)
+    base["why"] = nb.get("explanations", [])[:3]
+    return base
 
 
 @router.get("/courses/{course_id}/certificate.html", response_class=HTMLResponse)

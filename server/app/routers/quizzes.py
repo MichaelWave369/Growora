@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.db import get_session
 from app.models import Lesson, QuizAttempt
 from app.services.profile_context import resolve_profile_id
+from app.services.mastery import update_mastery
 
 router = APIRouter(prefix="/api", tags=["quizzes"])
 
@@ -33,4 +34,7 @@ def grade_quiz(lesson_id: int, req: GradeRequest, request: Request, session: Ses
             ans = req.answers[i]
             score += 1 if (q.get("type") == "mcq" and ans == q.get("answer")) or (q.get("type") == "short" and str(ans).strip()) else 0
     session.add(QuizAttempt(profile_id=profile_id, lesson_id=lesson_id, score=score, total=len(questions))); session.commit()
+    cscore = score / max(len(questions), 1)
+    # naive concept mapping: concept_id aligned to lesson id if exists
+    update_mastery(session, profile_id, lesson.course_id, lesson_id, "quiz", cscore, {"lesson_id": lesson_id})
     return {"score": score, "total": len(questions)}

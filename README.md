@@ -1,20 +1,20 @@
-# Growora v0.3 — Tutor Sessions + Multi-Profile + Worksheet Forge
+# Growora v0.4 — Mastery Graph + Skill Map + Studio + Offline Pro
 
-Offline-first personal tutoring platform: build courses, run guided study sessions, generate materials from your own documents, and track progress locally.
+Growora is an offline-first personal tutor that turns natural language goals into adaptive learning plans, concept mastery maps, and guided study sessions.
 
 ## Offline promise
-- Default: `GROWORA_NETWORK_MODE=offline`
-- No telemetry, no scraping, local-only data
-- Offline mode allows localhost only
-- Online mode allows only `GROWORA_ALLOWED_HOSTS`
+- Default `GROWORA_NETWORK_MODE=offline`
+- No telemetry. No scraping.
+- Outbound network restricted to localhost unless explicitly enabled + allowlisted.
+- SQLite + local file storage only.
 
-## What’s new in v0.3
-- **Multi-profile household mode** (`/profiles`) with active profile switching.
-- **Tutor sessions** (`/session/:id`): timer, events, reflection, coach summary.
-- **Library → Forge** (`/forge`): generate flashcards/worksheets/quizzes/summaries from uploaded docs.
-- **Streak + analytics** endpoints and dashboard widgets.
-- **Tutor chat drawer** with deterministic offline fallback and optional Ollama enrichment.
-- **Triad369 export upgrade** includes `learning_record.json`.
+## v0.4 tour (What’s new)
+- **Skill Graph + Mastery engine**: auto-concepts, prereq edges, mastery states, evidence events.
+- **Next Best Action planner**: mastery-driven daily plan with interleaving + review + explanations.
+- **SkillMap UI** (`/skillmap`) + **Mastery UI** (`/mastery`).
+- **Microdrills** APIs and concept-linked grading updates mastery.
+- **Studio** (`/studio`, `/studio/import`) for drafts, lesson generation, markdown/pdf import.
+- **Offline Pro**: PWA manifest + service worker, backup/restore endpoints, job status endpoint.
 
 ## Quickstart (Mac/Linux)
 ```bash
@@ -23,7 +23,7 @@ source .venv/bin/activate
 pip install -r server/requirements.txt
 cd web && npm install && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
-# in another terminal
+# another terminal
 cd web && npm run dev
 ```
 
@@ -34,28 +34,44 @@ python -m venv .venv
 pip install -r server\requirements.txt
 cd web && npm install && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
-:: in another terminal
+:: another terminal
 cd web && npm run dev
 ```
 
-## Key v0.3 APIs
-- Profiles: `GET/POST/PATCH /api/profiles`, `POST /api/profiles/{id}/select`
-- Sessions: `POST /api/sessions/start|event|end`, `GET /api/sessions/recent`, `GET /api/sessions/{id}`
-- Analytics: `GET /api/dashboard/analytics`, `GET /api/streak?course_id=`
-- Forge: `POST /api/forge/run`, `GET /api/forge/jobs`, `POST /api/forge/jobs/{id}/apply_to_course`
-- Tutor chat: `POST /api/tutor/chat`
+## SkillMap + Mastery usage
+1. Create course
+2. `POST /api/graph/rebuild?course_id=...`
+3. Open `/skillmap` and `/mastery`
+4. Submit evidence via quizzes/flashcards/drills
 
-## Environment variables
-See `.env.example`.
+## Studio usage
+- Create draft: `POST /api/studio/course`
+- Generate lesson content: `POST /api/studio/lesson/generate`
+- Import markdown: `POST /api/studio/import/markdown`
+- Import pdf outline: `POST /api/studio/import/pdf_outline`
 
-## Release tooling
+## PWA install
+- App serves `manifest.webmanifest` + `sw.js`
+- Install via browser “Install App” prompt once served over localhost
+
+## Backup/Restore
+- Create: `POST /api/backup/create`
+- Restore: `POST /api/backup/restore`
+- Safe default restore creates a new profile (`Restored - YYYY-MM-DD`)
+
+## Optional Ollama
+- `GROWORA_LLM_PROVIDER=ollama`
+- `GROWORA_OLLAMA_URL=http://localhost:11434`
+- `GROWORA_OLLAMA_MODEL=llama3.1`
+
+## Release artifacts
 ```bash
 python scripts/make_release_zip.py
 python scripts/make_course_sample.py
+python scripts/make_demo_pack.py
 ```
-Artifacts:
+
+Outputs:
 - `dist/growora-github-ready.zip`
 - `dist/sample_course_spec.json`
-
-## License
-MIT
+- `dist/demo_triad369_with_skillgraph.json`

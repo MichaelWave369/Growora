@@ -90,3 +90,43 @@ export function SettingsPage() {
   const save = async ()=> { localStorage.setItem('growora_reminders', enabled ? '1' : '0'); localStorage.setItem('growora_reminder_time', windowTime); if(enabled && 'Notification' in window){ await Notification.requestPermission() } alert('Saved locally') }
   return <div><h2>Settings</h2><label><input type='checkbox' checked={enabled} onChange={e=>setEnabled(e.target.checked)}/>Enable local reminders</label><input value={windowTime} onChange={e=>setWindowTime(e.target.value)}/><p>Night shift tip: reminders follow your day-start schedule.</p><button onClick={save}>Save</button></div>
 }
+
+export function SkillMapPage() {
+  const [courseId, setCourseId] = useState<number>()
+  const [graph, setGraph] = useState<any>()
+  useEffect(()=>{ api<any[]>('/api/courses').then(cs=>{ if(cs[0]) { setCourseId(cs[0].id); api<any>(`/api/graph?course_id=${cs[0].id}`).then(setGraph) }})},[])
+  const rebuild = async ()=> { if(!courseId) return; await api(`/api/graph/rebuild?course_id=${courseId}`,{method:'POST'}); setGraph(await api<any>(`/api/graph?course_id=${courseId}`)) }
+  return <div><h2>Skill Map</h2><button onClick={rebuild}>Rebuild Graph</button>
+    <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>{(graph?.concepts||[]).slice(0,80).map((c:any)=><div key={c.id} style={{border:'1px solid #ddd',padding:8,background: (graph?.mastery?.[c.id]?.bucket==='Mastered'?'#bbf7d0':graph?.mastery?.[c.id]?.bucket==='Comfortable'?'#bfdbfe':graph?.mastery?.[c.id]?.bucket==='Learning'?'#fde68a':'#fecaca')}}>{c.title}<br/><small>{graph?.mastery?.[c.id]?.bucket||'New'}</small></div>)}</div>
+    <pre>{JSON.stringify((graph?.edges||[]).slice(0,40),null,2)}</pre>
+  </div>
+}
+
+export function MasteryPage() {
+  const [rows, setRows] = useState<any[]>([])
+  const [filter, setFilter] = useState('')
+  useEffect(()=>{ api<any[]>('/api/courses').then(cs=> cs[0] && api<any[]>(`/api/mastery?course_id=${cs[0].id}`).then(setRows))},[])
+  const filtered = rows.filter(r=> !filter || (r.bucket||'').toLowerCase().includes(filter.toLowerCase()))
+  return <div><h2>Mastery Map</h2><input placeholder='filter bucket' value={filter} onChange={e=>setFilter(e.target.value)}/><button onClick={()=>alert('Start concept-based review from /today session')}>Start Review Session</button><pre>{JSON.stringify(filtered,null,2)}</pre></div>
+}
+
+export function StudioPage() {
+  const [title,setTitle]=useState('New Draft'); const [topic,setTopic]=useState('General'); const [template,setTemplate]=useState('Guitar Beginner'); const [status,setStatus]=useState('')
+  const create = async ()=>{ const r=await api<any>('/api/studio/course',{method:'POST',body:JSON.stringify({title,topic,template})}); setStatus(`Created course ${r.id}`) }
+  const gen = async ()=>{ const cs=await api<any[]>('/api/courses'); if(!cs[0]) return; const c=await api<any>(`/api/courses/${cs[0].id}`); const ids=(c.lessons||[]).slice(0,3).map((l:any)=>l.id); await api('/api/studio/lesson/generate',{method:'POST',body:JSON.stringify({lesson_ids:ids})}); setStatus('Generated selected lessons') }
+  return <div><h2>Studio</h2><input value={title} onChange={e=>setTitle(e.target.value)}/><input value={topic} onChange={e=>setTopic(e.target.value)}/><select value={template} onChange={e=>setTemplate(e.target.value)}><option>Kids Math</option><option>Coding Basics</option><option>Guitar Beginner</option><option>Tech for Seniors</option></select><button onClick={create}>Create Draft</button><button onClick={gen}>Generate content for selected lessons</button><a href='/studio/import'>Go to Import</a><p>{status}</p></div>
+}
+
+export function StudioImportPage() {
+  const [status,setStatus]=useState('')
+  const mdImport = async (e: FormEvent<HTMLFormElement>)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const r=await fetch('/api/studio/import/markdown',{method:'POST',body:fd,headers:{'X-Growora-Profile': localStorage.getItem('growora_profile_id')||''}}); setStatus(await r.text()) }
+  const pdfImport = async (e: FormEvent<HTMLFormElement>)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const r=await fetch('/api/studio/import/pdf_outline',{method:'POST',body:fd,headers:{'X-Growora-Profile': localStorage.getItem('growora_profile_id')||''}}); setStatus(await r.text()) }
+  return <div><h2>Studio Import</h2><form onSubmit={mdImport}><input name='title' defaultValue='Imported Markdown'/><textarea name='markdown_text' defaultValue='# Lesson 1\nIntro\n# Lesson 2\nPractice'/><button>Import markdown</button></form><form onSubmit={pdfImport}><input name='title' defaultValue='Imported PDF'/><input name='file' type='file'/><button>Import PDF outline</button></form><pre>{status}</pre></div>
+}
+
+export function BackupPage() {
+  const [status,setStatus]=useState('')
+  const create = async (e: FormEvent<HTMLFormElement>)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const r=await fetch('/api/backup/create',{method:'POST',body:fd}); setStatus(await r.text()) }
+  const restore = async (e: FormEvent<HTMLFormElement>)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const r=await fetch('/api/backup/restore',{method:'POST',body:fd,headers:{'X-Growora-Profile': localStorage.getItem('growora_profile_id')||''}}); setStatus(await r.text()) }
+  return <div><h2>Backup & Restore</h2><form onSubmit={create}><label><input type='checkbox' name='include_attachments'/>Include attachments</label><label><input type='checkbox' name='include_exports' defaultChecked/>Include exports</label><button>Create backup</button></form><form onSubmit={restore}><input type='file' name='file'/><label><input type='checkbox' name='overwrite'/>Overwrite DB</label><button>Restore backup</button></form><pre>{status}</pre></div>
+}

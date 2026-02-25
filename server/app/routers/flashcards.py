@@ -7,6 +7,7 @@ from app.db import get_session
 from app.models import Flashcard, ReviewLog
 from app.services.profile_context import resolve_profile_id
 from app.services.srs import SM2State, sm2_review
+from app.services.mastery import update_mastery
 
 router = APIRouter(prefix="/api", tags=["flashcards"])
 
@@ -40,4 +41,5 @@ def review(req: ReviewRequest, request: Request, session: Session = Depends(get_
     state = SM2State(repetitions=2 if logs and logs[-1].interval_days >= 6 else 1 if logs else 0, interval_days=(logs[-1].interval_days if logs else 0), ease=(logs[-1].ease if logs else 2.5))
     state, due_at = sm2_review(state, req.rating)
     session.add(ReviewLog(profile_id=profile_id, flashcard_id=card.id, rating=req.rating, interval_days=state.interval_days, ease=state.ease, due_at=due_at)); session.commit()
+    update_mastery(session, profile_id, card.course_id, card.id, "flashcard", req.rating / 5.0, {"flashcard_id": card.id})
     return {"due_at": due_at, "interval_days": state.interval_days, "ease": state.ease}

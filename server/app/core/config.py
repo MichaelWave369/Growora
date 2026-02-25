@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Growora"
-    app_version: str = "0.3.0"
+    app_version: str = "0.4.0"
     db_path: str = "server/data/growora.db"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     growora_allowed_hosts: str = "localhost,127.0.0.1"
     growora_log_prompts: bool = False
     growora_chat_store_default: bool = False
+    growora_kid_focus_mode_default: bool = True
+    growora_kid_daily_limit_minutes: int = 45
 
     coevo_url: str | None = None
     coevo_api_key: str | None = None

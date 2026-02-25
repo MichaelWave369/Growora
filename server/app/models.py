@@ -183,3 +183,77 @@ class SchemaVersion(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     version: str = "0.3.0"
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Concept(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    slug: str = Field(index=True)
+    title: str
+    description: str = ""
+    tags_json: str = "[]"
+    meta_json: str = "{}"
+
+
+class ConceptEdge(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    src_concept_id: int = Field(index=True)
+    dst_concept_id: int = Field(index=True)
+    kind: str = "prereq"
+    weight: float = 1.0
+
+
+class ConceptLessonLink(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    concept_id: int = Field(index=True)
+    lesson_id: int = Field(index=True)
+    strength: float = 1.0
+
+
+class MasteryState(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    concept_id: int = Field(index=True)
+    theta: float = 0.0
+    sigma: float = 1.0
+    last_seen_at: datetime | None = None
+    streak: int = 0
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class EvidenceEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    concept_id: int = Field(index=True)
+    kind: str = "quiz"
+    score: float = 0.0
+    ts: datetime = Field(default_factory=datetime.utcnow)
+    meta_json: str = "{}"
+
+
+class Microdrill(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    concept_id: int = Field(index=True)
+    kind: str
+    prompt: str
+    answer_key_json: str = "{}"
+    difficulty: str = "beginner"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class JobRecord(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    kind: str
+    status: str = "queued"
+    detail: str = ""
+    created_at: datetime = Field(default_factory=datetime.utcnow)

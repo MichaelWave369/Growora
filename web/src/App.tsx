@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { CourseEditPage, CoursePage, DashboardPage, ExportPage, FlashcardsPage, ForgePage, HomePage, IntakePage, LessonPage, LibraryPage, ProfilesPage, SessionPage, SettingsPage, TodayPage, VerifyPage } from './pages'
+import { BackupPage, CourseEditPage, CoursePage, DashboardPage, ExportPage, FlashcardsPage, ForgePage, HomePage, IntakePage, LessonPage, LibraryPage, MasteryPage, ProfilesPage, SessionPage, SettingsPage, SkillMapPage, StudioImportPage, StudioPage, TodayPage, VerifyPage } from './pages'
 import { api } from './api/client'
 
 export function App() {
@@ -26,7 +26,7 @@ export function App() {
   return (
     <div className="app">
       <nav>
-        <Link to="/">Growora</Link> | <Link to="/profiles">Profiles</Link> | <Link to="/intake">Intake</Link> | <Link to="/today">Today</Link> | <Link to="/library">Library</Link> | <Link to="/forge">Forge</Link> | <Link to="/flashcards">Flashcards</Link> | <Link to="/dashboard">Dashboard</Link> | <Link to="/export">Export</Link> | <Link to="/settings">Settings</Link>
+        <Link to="/">Growora</Link> | <Link to="/profiles">Profiles</Link> | <Link to="/intake">Intake</Link> | <Link to="/today">Today</Link> | <Link to="/library">Library</Link> | <Link to="/forge">Forge</Link> | <Link to="/skillmap">SkillMap</Link> | <Link to="/mastery">Mastery</Link> | <Link to="/studio">Studio</Link> | <Link to="/flashcards">Flashcards</Link> | <Link to="/dashboard">Dashboard</Link> | <Link to="/export">Export</Link> | <Link to="/settings">Settings</Link> | <Link to="/settings/backup">Backup</Link>
         <select onChange={(e)=>switchProfile(e.target.value)} value={localStorage.getItem('growora_profile_id') || ''}>
           <option value="">Profile</option>
           {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
@@ -49,11 +49,16 @@ export function App() {
         <Route path="/lesson/:lessonId" element={<LessonPage />} />
         <Route path="/library" element={<LibraryPage />} />
         <Route path="/forge" element={<ForgePage />} />
+        <Route path="/skillmap" element={<SkillMapPage />} />
+        <Route path="/mastery" element={<MasteryPage />} />
+        <Route path="/studio" element={<StudioPage />} />
+        <Route path="/studio/import" element={<StudioImportPage />} />
         <Route path="/flashcards" element={<FlashcardsPage />} />
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/export" element={<ExportPage />} />
         <Route path="/verify/:certId" element={<VerifyPage />} />
         <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/settings/backup" element={<BackupPage />} />
       </Routes>
     </div>
   )
