@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
+from app.core.auth import require_local_admin
 from app.models import Document, DocumentChunk
 from app.services.library import save_upload, search_library
 from app.services.profile_context import resolve_profile_id
@@ -39,7 +40,7 @@ def set_tags(doc_id: int, req: TagRequest, request: Request, session: Session = 
     return {'ok': True}
 
 
-@router.delete('/library/docs/{doc_id}')
+@router.delete('/library/docs/{doc_id}', dependencies=[Depends(require_local_admin)])
 def delete_doc(doc_id: int, request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
     profile_id = resolve_profile_id(session, x_growora_profile, request)
     doc = session.get(Document, doc_id)

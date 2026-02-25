@@ -97,3 +97,28 @@ Outputs:
 ### Screenshot placeholders
 - `docs/screenshots/classroom-session.png` (placeholder)
 - `docs/screenshots/classroom-summary.png` (placeholder)
+
+
+## LAN Mode (v0.6)
+Growora can host a classroom on your local Wi-Fi so multiple devices can join.
+
+### Safety first
+- Default mode is **local only** (`GROWORA_NETWORK_MODE=local`, bind `127.0.0.1`).
+- Enable LAN mode explicitly.
+- Use private/home Wi-Fi only (avoid public networks).
+- Rotate room codes often and stop hosting when done.
+
+### LAN host workflow
+1. Facilitator opens `/classrooms`, starts a classroom session.
+2. Create LAN room with `/api/lan/rooms/create`.
+3. Share join URL/QR: `http://<LAN_IP>:8000/join/<ROOM_CODE>`.
+4. Learners join and remain pending until facilitator approves.
+5. Approved learners sync via WebSocket in `/ws/lan/{room_code}`.
+
+### LAN scripts
+- Unix: `scripts/host_lan_unix.sh`
+- Windows: `scripts/host_lan_windows.bat`
+
+### Local-only scripts (existing)
+- Unix: `run_unix.sh`
+- Windows: `run_windows.bat`

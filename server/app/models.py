@@ -359,3 +359,37 @@ class TeachbackSubmission(SQLModel, table=True):
     score_json: str
     feedback_md: str
     submitted_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LanRoom(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    classroom_id: int = Field(index=True)
+    session_id: int = Field(index=True)
+    code: str = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+    created_by_profile_id: int = Field(index=True)
+    status: str = "active"
+
+
+class LanClient(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    room_id: int = Field(index=True)
+    client_name: str
+    device_type: str = "unknown"
+    ip: str = ""
+    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    last_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    role: str = "learner"
+    profile_id_optional: int | None = Field(default=None, index=True)
+    permissions_json: str = "{}"
+    status: str = "pending"
+
+
+class LanAuthToken(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    room_id: int = Field(index=True)
+    token_hash: str = Field(index=True)
+    issued_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+    client_id: int = Field(index=True)

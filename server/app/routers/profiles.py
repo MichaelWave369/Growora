@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
+from app.core.auth import require_local_admin
 from app.models import Profile
 
 router = APIRouter(prefix="/api", tags=["profiles"])
@@ -31,14 +32,14 @@ def list_profiles(session: Session = Depends(get_session)):
     return session.exec(select(Profile).order_by(Profile.id)).all()
 
 
-@router.post("/profiles")
+@router.post("/profiles", dependencies=[Depends(require_local_admin)])
 def create_profile(body: ProfileCreate, session: Session = Depends(get_session)):
     p = Profile(**body.model_dump())
     session.add(p); session.commit(); session.refresh(p)
     return p
 
 
-@router.patch("/profiles/{profile_id}")
+@router.patch("/profiles/{profile_id}", dependencies=[Depends(require_local_admin)])
 def patch_profile(profile_id: int, body: ProfilePatch, session: Session = Depends(get_session)):
     p = session.get(Profile, profile_id)
     if not p:
@@ -58,7 +59,7 @@ def select_profile(profile_id: int, response: Response, session: Session = Depen
     return {"ok": True, "active_profile_id": profile_id}
 
 
-@router.post("/profiles/{profile_id}/lock")
+@router.post("/profiles/{profile_id}/lock", dependencies=[Depends(require_local_admin)])
 def lock_profile(profile_id: int, body: LockBody, session: Session = Depends(get_session)):
     p = session.get(Profile, profile_id)
     if not p:

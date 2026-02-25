@@ -167,6 +167,8 @@ export function ClassroomPage() {
   const [liveQuiz, setLiveQuiz] = useState<any>()
   const [teachPrompt, setTeachPrompt] = useState<any>()
   const [teachResp, setTeachResp] = useState('')
+  const [lanRoom, setLanRoom] = useState<any>()
+  const [lanStatus, setLanStatus] = useState<any>()
   const [readAloud, setReadAloud] = useState(false)
   const [dictate, setDictate] = useState(false)
 
@@ -221,6 +223,13 @@ export function ClassroomPage() {
   const summaryPdf = ()=>{ const w=window.open('','_blank'); if(!w||!summary) return; w.document.write('<pre>'+JSON.stringify(summary,null,2)+'</pre>'); w.print() }
   const startNext = ()=> window.location.reload()
 
+
+  const createLanRoom = async ()=>{ const r=await api<any>('/api/lan/rooms/create',{method:'POST',body:JSON.stringify({classroom_id:Number(classroomId),session_id:Number(sessionId)})}); setLanRoom(r); setLanStatus(await api<any>(`/api/lan/rooms/${r.room_code}/status`)) }
+  const refreshLan = async ()=>{ if(!lanRoom?.room_code) return; setLanStatus(await api<any>(`/api/lan/rooms/${lanRoom.room_code}/status`)) }
+  const approveClient = async (id:number)=>{ const pid=Number(localStorage.getItem('growora_profile_id')||1); await api(`/api/lan/rooms/${lanRoom.room_code}/approve`,{method:'POST',body:JSON.stringify({client_id:id,profile_id:pid,permissions:{view:true,draw:true,quiz:true,teachback:true}})}); refreshLan() }
+  const denyClient = async (id:number)=>{ await api(`/api/lan/rooms/${lanRoom.room_code}/deny`,{method:'POST',body:JSON.stringify({client_id:id})}); refreshLan() }
+  const rotateLan = async ()=>{ if(!lanRoom?.room_code) return; setLanRoom(await api<any>(`/api/lan/rooms/${lanRoom.room_code}/rotate`,{method:'POST'})) }
+
   const readText = (t:string)=>{ if(readAloud && 'speechSynthesis' in window){ const u=new SpeechSynthesisUtterance(t); window.speechSynthesis.speak(u) } }
   const doDictate = ()=>{
     const SR=(window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
@@ -246,8 +255,97 @@ export function ClassroomPage() {
       <button onClick={createTeach}>Create Teach-back</button><textarea value={teachResp} onChange={e=>setTeachResp(e.target.value)} placeholder='Explain concept in your words' /><button onClick={submitTeach}>Submit Teach-back</button><button onClick={applyTeach}>Apply to Mastery</button>
       <div><label><input type='checkbox' checked={readAloud} onChange={e=>setReadAloud(e.target.checked)} />Read instructions aloud</label></div>
       <div><label><input type='checkbox' checked={dictate} onChange={e=>setDictate(e.target.checked)} />Dictate teach-back</label><button onClick={doDictate}>Start dictation</button></div>
+
+      <h4>LAN Room</h4><button onClick={createLanRoom}>Create Room</button><button onClick={refreshLan}>Refresh</button><button onClick={rotateLan}>Rotate Code</button>{lanRoom && <div><p>Code: {lanRoom.room_code}</p><p>Join: {lanRoom.join_url}</p><img src={`/api/lan/rooms/${lanRoom.room_code}/qr.png`} alt='lan qr' style={{width:180}}/></div>}{lanStatus && <div><h5>Pending</h5>{(lanStatus.pending_clients||[]).map((c:any)=><div key={c.id}>{c.client_name} <button onClick={()=>approveClient(c.id)}>Approve</button><button onClick={()=>denyClient(c.id)}>Deny</button></div>)}<h5>Approved</h5><pre>{JSON.stringify(lanStatus.approved_clients||[],null,2)}</pre></div>}
       <button onClick={endSession}>End Session</button>
       {summary && <><h4>Session Summary</h4><pre>{JSON.stringify(summary,null,2)}</pre><button onClick={summaryPdf}>Export Summary PDF</button><button onClick={assignHomework}>Assign homework</button><button onClick={startNext}>Start next session</button></>}
     </section>
+  </div>
+}
+
+export function LanHostPage() {
+  const [net, setNet] = useState<any>()
+  const [rooms, setRooms] = useState<any[]>([])
+  const [selected, setSelected] = useState<any>()
+  const [qr, setQr] = useState('')
+
+  const load = async () => {
+    setNet(await api<any>('/api/network/addresses'))
+    const cs = await api<any[]>('/api/classrooms')
+    setRooms(cs)
+  }
+  useEffect(()=>{ load() },[])
+
+  const createRoom = async () => {
+    const classes = await api<any[]>('/api/classrooms')
+    if(!classes[0]) return alert('Create classroom first')
+    const det = await api<any>(`/api/classrooms/${classes[0].id}/sessions/start`, {method:'POST', body: JSON.stringify({course_id: (await api<any[]>('/api/courses'))[0]?.id || 1, agenda:['LAN'], mode:'live', title:'LAN Session'})})
+    const room = await api<any>('/api/lan/rooms/create', {method:'POST', body: JSON.stringify({classroom_id: classes[0].id, session_id: det.id})})
+    setSelected(room)
+    setQr(`/api/lan/rooms/${room.room_code}/qr.png`)
+  }
+
+  const rotate = async () => {
+    if(!selected?.room_code) return
+    setSelected(await api<any>(`/api/lan/rooms/${selected.room_code}/rotate`, {method:'POST'}))
+  }
+
+  return <div><h2>LAN Host Mode</h2>
+    <p style={{color:'#b91c1c'}}>Warning: LAN mode exposes host to your Wi-Fi network. Use private networks only.</p>
+    <pre>{JSON.stringify(net,null,2)}</pre>
+    <button onClick={createRoom}>Create LAN room</button>
+    {selected && <div><p>Join URL: {selected.join_url}</p><button onClick={()=>navigator.clipboard.writeText(selected.join_url)}>Copy join link</button><button onClick={rotate}>Rotate room code</button>{qr && <img src={qr} alt='qr' style={{width:220}}/>}</div>}
+  </div>
+}
+
+export function JoinRoomPage() {
+  const { roomCode } = useParams();
+  const [name, setName] = useState('Learner')
+  const [status, setStatus] = useState('')
+  const nav = useNavigate()
+  const join = async () => {
+    const r = await api<any>(`/api/lan/rooms/${roomCode}/join`, {method:'POST', body: JSON.stringify({client_name:name,device_type:'web'})})
+    localStorage.setItem('growora_lan_token', r.token)
+    localStorage.setItem('growora_lan_client_id', String(r.client_id))
+    setStatus('Waiting for approval...')
+    const poll = setInterval(async ()=>{
+      try{
+        const st = await api<any>(`/api/lan/rooms/${roomCode}/status`)
+        const me = (st.approved_clients||[]).find((c:any)=> String(c.id)===localStorage.getItem('growora_lan_client_id'))
+        if(me){ clearInterval(poll); nav(`/lan/session/${roomCode}`) }
+      }catch{}
+    },1500)
+  }
+  return <div><h2>Join LAN Room {roomCode}</h2><input value={name} onChange={e=>setName(e.target.value)}/><button onClick={join}>Connect</button><p>{status}</p></div>
+}
+
+export function LanSessionPage() {
+  const { roomCode } = useParams();
+  const [msgs, setMsgs] = useState<any[]>([])
+  const [connected, setConnected] = useState(false)
+  const [draw, setDraw] = useState(true)
+  const [text, setText] = useState('')
+  const wsRef = (globalThis as any).__lanws || ((globalThis as any).__lanws = { current: null as WebSocket | null })
+
+  useEffect(()=>{
+    const token = localStorage.getItem('growora_lan_token') || ''
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+    const ws = new WebSocket(`${proto}://${location.host}/ws/lan/${roomCode}?token=${encodeURIComponent(token)}`)
+    wsRef.current = ws
+    ws.onopen = ()=>setConnected(true)
+    ws.onmessage = (ev)=>{ try { setMsgs(m=>[...m, JSON.parse(ev.data)].slice(-120)) } catch {} }
+    ws.onclose = ()=>setConnected(false)
+    return ()=> ws.close()
+  },[roomCode])
+
+  const send = (type:string,payload:any)=> wsRef.current?.send(JSON.stringify({type, ts:new Date().toISOString(), room_code: roomCode, payload}))
+
+  return <div><h2>LAN Learner Session {roomCode}</h2><p>{connected ? 'Connected' : 'Disconnected'}</p>
+    <button onClick={()=>send('slide_present',{deck_id:1,slide_index:1})}>Sync slide</button>
+    <button disabled={!draw} onClick={()=>send('whiteboard_draw',{stroke:[[1,2],[3,4]]})}>Draw stroke</button>
+    <button onClick={()=>send('livequiz_submit',{answers:['A']})}>Submit quiz</button>
+    <textarea value={text} onChange={e=>setText(e.target.value)} placeholder='Teach-back response'/><button onClick={()=>send('teachback_submit',{response:text})}>Submit teach-back</button>
+    <button onClick={()=>{ localStorage.removeItem('growora_lan_token'); location.href='/' }}>Disconnect</button>
+    <pre>{JSON.stringify(msgs,null,2)}</pre>
   </div>
 }

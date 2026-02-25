@@ -4,14 +4,23 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Growora"
-    app_version: str = "0.4.0"
+    app_version: str = "0.6.0"
     db_path: str = "server/data/growora.db"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    growora_network_mode: str = "local"  # local|lan|online
+    growora_bind_host: str = "127.0.0.1"
+    growora_bind_port: int = 8000
+    growora_allowed_origins: str = "http://localhost:5173"
+    growora_lan_require_join_code: int = 1
+    growora_lan_room_ttl_minutes: int = 120
+    growora_lan_max_clients: int = 12
+    growora_lan_trusted_subnets: str = ""
+    growora_lan_rate_limit: int = 20
 
     growora_llm_provider: str = "none"
     growora_ollama_url: str = "http://localhost:11434"
     growora_ollama_model: str = "llama3.1"
-    growora_network_mode: str = "offline"
     growora_allowed_hosts: str = "localhost,127.0.0.1"
     growora_log_prompts: bool = False
     growora_chat_store_default: bool = False
@@ -29,11 +38,18 @@ class Settings(BaseSettings):
         Path("server/data/uploads").mkdir(parents=True, exist_ok=True)
         Path("server/data/extracted").mkdir(parents=True, exist_ok=True)
         Path("server/data/exports").mkdir(parents=True, exist_ok=True)
+        Path("server/data/whiteboards").mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{self.db_path}"
 
     @property
     def allowed_hosts(self) -> set[str]:
         return {h.strip() for h in self.growora_allowed_hosts.split(",") if h.strip()}
+
+    @property
+    def bind_host(self) -> str:
+        if self.growora_network_mode == "local":
+            return "127.0.0.1"
+        return self.growora_bind_host
 
 
 settings = Settings()
