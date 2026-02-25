@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.db import init_db
-from app.routers import courses, flashcards, library, progress, quizzes, system
+from app.routers import courses, flashcards, forge, library, profiles, progress, quizzes, sessions, system, tutor
 
 app = FastAPI(title=settings.app_name, version=settings.app_version)
 app.add_middleware(
@@ -15,11 +15,15 @@ app.add_middleware(
 )
 
 app.include_router(system.router)
+app.include_router(profiles.router)
 app.include_router(courses.router)
 app.include_router(progress.router)
 app.include_router(quizzes.router)
 app.include_router(flashcards.router)
 app.include_router(library.router)
+app.include_router(sessions.router)
+app.include_router(forge.router)
+app.include_router(tutor.router)
 
 
 @app.on_event("startup")

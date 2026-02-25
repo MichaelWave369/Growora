@@ -4,8 +4,6 @@ __pycache__/
 node_modules/
 dist/
 .env
-server/data/growora.db
-server/data/exports/
-server/data/uploads/
-server/data/extracted/
+server/data/*
+!server/data/.gitkeep
 .pytest_cache/

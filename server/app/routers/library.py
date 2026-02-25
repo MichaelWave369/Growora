@@ -1,11 +1,12 @@
 import json
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, Request, UploadFile
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import Document, DocumentChunk
 from app.services.library import save_upload, search_library
+from app.services.profile_context import resolve_profile_id
 
 router = APIRouter(prefix="/api", tags=["library"])
 
@@ -15,21 +16,23 @@ class TagRequest(BaseModel):
 
 
 @router.post('/library/upload')
-def upload(tags: str = "", file: UploadFile = File(...), session: Session = Depends(get_session)):
+def upload(request: Request, tags: str = "", file: UploadFile = File(...), session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
+    profile_id = resolve_profile_id(session, x_growora_profile, request)
     tag_list = [t.strip() for t in tags.split(',') if t.strip()]
-    doc = save_upload(file, tag_list, session)
-    return doc
+    return save_upload(file, tag_list, session, profile_id)
 
 
 @router.get('/library/docs')
-def docs(session: Session = Depends(get_session)):
-    return session.exec(select(Document)).all()
+def docs(request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
+    profile_id = resolve_profile_id(session, x_growora_profile, request)
+    return session.exec(select(Document).where(Document.profile_id == profile_id)).all()
 
 
 @router.post('/library/docs/{doc_id}/tags')
-def set_tags(doc_id: int, req: TagRequest, session: Session = Depends(get_session)):
+def set_tags(doc_id: int, req: TagRequest, request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
+    profile_id = resolve_profile_id(session, x_growora_profile, request)
     doc = session.get(Document, doc_id)
-    if not doc:
+    if not doc or doc.profile_id != profile_id:
         raise HTTPException(404, 'Document not found')
     doc.tags_json = json.dumps(req.tags)
     session.add(doc); session.commit()
@@ -37,11 +40,12 @@ def set_tags(doc_id: int, req: TagRequest, session: Session = Depends(get_sessio
 
 
 @router.delete('/library/docs/{doc_id}')
-def delete_doc(doc_id: int, session: Session = Depends(get_session)):
+def delete_doc(doc_id: int, request: Request, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
+    profile_id = resolve_profile_id(session, x_growora_profile, request)
     doc = session.get(Document, doc_id)
-    if not doc:
+    if not doc or doc.profile_id != profile_id:
         raise HTTPException(404, 'Document not found')
-    chunks = session.exec(select(DocumentChunk).where(DocumentChunk.document_id == doc_id)).all()
+    chunks = session.exec(select(DocumentChunk).where(DocumentChunk.document_id == doc_id, DocumentChunk.profile_id == profile_id)).all()
     for c in chunks:
         session.delete(c)
     session.delete(doc)
@@ -50,7 +54,7 @@ def delete_doc(doc_id: int, session: Session = Depends(get_session)):
 
 
 @router.get('/library/search')
-def search(q: str = Query(...), tags: str = "", course_id: int | None = None):
+def search(request: Request, q: str = Query(...), tags: str = "", course_id: int | None = None, session: Session = Depends(get_session), x_growora_profile: str | None = Header(default=None)):
     _ = course_id
-    tag_list = [t.strip() for t in tags.split(',') if t.strip()]
-    return search_library(q, tag_list)
+    profile_id = resolve_profile_id(session, x_growora_profile, request)
+    return search_library(q, [t.strip() for t in tags.split(',') if t.strip()], profile_id)

@@ -3,8 +3,19 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 
+class Profile(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    display_name: str
+    role: str = "adult"
+    timezone: str = "UTC"
+    day_start_time: str = "06:00"
+    pin_hash_optional: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Course(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     title: str
     topic: str
     learner_profile_json: str
@@ -49,6 +60,7 @@ class Task(SQLModel, table=True):
 
 class Flashcard(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     course_id: int = Field(index=True)
     front: str
     back: str
@@ -57,6 +69,7 @@ class Flashcard(SQLModel, table=True):
 
 class ReviewLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     flashcard_id: int = Field(index=True)
     reviewed_at: datetime = Field(default_factory=datetime.utcnow)
     rating: int
@@ -67,6 +80,7 @@ class ReviewLog(SQLModel, table=True):
 
 class QuizAttempt(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     lesson_id: int = Field(index=True)
     score: int
     total: int
@@ -75,6 +89,7 @@ class QuizAttempt(SQLModel, table=True):
 
 class Certificate(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     course_id: int = Field(index=True)
     issued_at: datetime = Field(default_factory=datetime.utcnow)
     recipient_name: str
@@ -83,6 +98,7 @@ class Certificate(SQLModel, table=True):
 
 class Document(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     filename: str
     mime: str
     size: int
@@ -94,6 +110,7 @@ class Document(SQLModel, table=True):
 
 class DocumentChunk(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     document_id: int = Field(index=True)
     idx: int
     text: str
@@ -103,8 +120,66 @@ class DocumentChunk(SQLModel, table=True):
 
 class PublishLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
     course_id: int = Field(index=True)
     provider: str
     status: str
     detail: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class StudySession(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    lesson_id_optional: int | None = Field(default=None, index=True)
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    ended_at: datetime | None = None
+    planned_minutes: int = 30
+    actual_minutes: int = 0
+    mode: str = "standard"
+    notes_md: str = ""
+
+
+class SessionEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    ts: datetime = Field(default_factory=datetime.utcnow)
+    type: str
+    payload_json: str = "{}"
+
+
+class SessionSummary(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    focus_score: float = 0.0
+    mastery_delta: float = 0.0
+    streak_delta: int = 0
+    coach_summary_md: str = ""
+
+
+class ForgeJob(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    status: str = "done"
+    type: str
+    input_doc_ids_json: str
+    params_json: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    result_ref_json: str = "{}"
+    error: str | None = None
+
+
+class TutorMessage(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int | None = Field(default=None, index=True)
+    role: str
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class SchemaVersion(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    version: str = "0.3.0"
     created_at: datetime = Field(default_factory=datetime.utcnow)

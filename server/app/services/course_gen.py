@@ -29,10 +29,10 @@ def parse_intake(free_text: str, wizard: dict) -> CourseSpec:
     return CourseSpec(**merged)
 
 
-def _library_context(spec: CourseSpec, session: Session) -> str:
+def _library_context(spec: CourseSpec, session: Session, profile_id: int) -> str:
     if not spec.auto_use_library and not spec.context_doc_ids:
         return ""
-    stmt = select(DocumentChunk)
+    stmt = select(DocumentChunk).where(DocumentChunk.profile_id == profile_id)
     if spec.context_doc_ids:
         stmt = stmt.where(DocumentChunk.document_id.in_(spec.context_doc_ids))
     chunks = session.exec(stmt.limit(5)).all()
@@ -42,12 +42,12 @@ def _library_context(spec: CourseSpec, session: Session) -> str:
     return f"\n\n## Library Key points\n- {corpus[:300]}\n\n## Vocabulary\n- 3 terms from your docs\n\n## Practice prompts\n- Apply one idea from your docs today"
 
 
-def generate_course_payload(spec: CourseSpec, session: Session):
+def generate_course_payload(spec: CourseSpec, session: Session, profile_id: int):
     weeks = []
     lessons = []
     lesson_counter = 1
     start_anchor = datetime.utcnow()
-    lib_ctx = _library_context(spec, session)
+    lib_ctx = _library_context(spec, session, profile_id)
 
     for week_idx in range(1, 9):
         objectives = [

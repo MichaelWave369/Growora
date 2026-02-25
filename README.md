@@ -1,28 +1,20 @@
-# Growora v0.2 — Super Tutor
+# Growora v0.3 — Tutor Sessions + Multi-Profile + Worksheet Forge
 
-**Natural language → your personal tutor (offline-first).**
-
-Growora builds an 8-week course with daily exercises, quizzes, SM-2 flashcards, adaptive planning, and a local knowledge library (PDF/MD/TXT).
+Offline-first personal tutoring platform: build courses, run guided study sessions, generate materials from your own documents, and track progress locally.
 
 ## Offline promise
-- Default mode: `GROWORA_NETWORK_MODE=offline`
-- No telemetry, no scraping, no hidden outbound calls
+- Default: `GROWORA_NETWORK_MODE=offline`
+- No telemetry, no scraping, local-only data
 - Offline mode allows localhost only
 - Online mode allows only `GROWORA_ALLOWED_HOSTS`
-- SQLite local DB: `server/data/growora.db`
 
-## New in v0.2
-- **Knowledge Library**: upload/search/tag/delete documents at `/library`
-- **Adaptive planner**: smarter `/today` + next 7-day preview
-- **Course editor**: `/course/:id/edit` title/schedule/difficulty/reorder/regen week
-- **Triad369 package**: export/import/validate course zips
-- **Safer CoEvo publish**: test connection + dry-run + publish logs
-- **Certificate verify**: `/verify/:cert_id`
-- **Release tooling**: scripts for github-ready zip and sample course spec
-
-## Monorepo
-- `server/` FastAPI + SQLModel + SQLite
-- `web/` React + Vite + TypeScript
+## What’s new in v0.3
+- **Multi-profile household mode** (`/profiles`) with active profile switching.
+- **Tutor sessions** (`/session/:id`): timer, events, reflection, coach summary.
+- **Library → Forge** (`/forge`): generate flashcards/worksheets/quizzes/summaries from uploaded docs.
+- **Streak + analytics** endpoints and dashboard widgets.
+- **Tutor chat drawer** with deterministic offline fallback and optional Ollama enrichment.
+- **Triad369 export upgrade** includes `learning_record.json`.
 
 ## Quickstart (Mac/Linux)
 ```bash
@@ -31,7 +23,7 @@ source .venv/bin/activate
 pip install -r server/requirements.txt
 cd web && npm install && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
-# new terminal
+# in another terminal
 cd web && npm run dev
 ```
 
@@ -42,46 +34,26 @@ python -m venv .venv
 pip install -r server\requirements.txt
 cd web && npm install && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
-:: new terminal
+:: in another terminal
 cd web && npm run dev
 ```
 
-## Optional Ollama (local LLM)
-- `GROWORA_LLM_PROVIDER=ollama`
-- `GROWORA_OLLAMA_URL=http://localhost:11434`
-- `GROWORA_OLLAMA_MODEL=llama3.1`
+## Key v0.3 APIs
+- Profiles: `GET/POST/PATCH /api/profiles`, `POST /api/profiles/{id}/select`
+- Sessions: `POST /api/sessions/start|event|end`, `GET /api/sessions/recent`, `GET /api/sessions/{id}`
+- Analytics: `GET /api/dashboard/analytics`, `GET /api/streak?course_id=`
+- Forge: `POST /api/forge/run`, `GET /api/forge/jobs`, `POST /api/forge/jobs/{id}/apply_to_course`
+- Tutor chat: `POST /api/tutor/chat`
 
-If not set, deterministic template generation is used.
-
-## Library (attachments + search)
-- Upload: `POST /api/library/upload` (multipart)
-- Search: `GET /api/library/search?q=...`
-- Stored files: `server/data/uploads/`
-- Extracted text cache: `server/data/extracted/`
-
-## Adaptive planner
-- `GET /api/courses/{id}/plan/today`
-- `GET /api/courses/{id}/plan/next7`
-- Uses completion + quiz signals + missed-day rollover
-
-## Triad369 export/import
-- Export: `POST /api/export/triad369/{course_id}`
-- Import: `POST /api/import/triad369`
-- Validate: `POST /api/export/triad369/validate`
-
-## Safe CoEvo publish (optional opt-in)
-- Configure `COEVO_URL` + `COEVO_API_KEY`
-- Test connection: `GET /api/publish/test`
-- Dry run publish: `POST /api/publish/coevo/{id}?dry_run=1`
-- Real publish: `POST /api/publish/coevo/{id}?dry_run=0`
-- Logs: `GET /api/publish/logs`
+## Environment variables
+See `.env.example`.
 
 ## Release tooling
 ```bash
 python scripts/make_release_zip.py
 python scripts/make_course_sample.py
 ```
-Outputs:
+Artifacts:
 - `dist/growora-github-ready.zip`
 - `dist/sample_course_spec.json`
 
