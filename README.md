@@ -177,3 +177,22 @@ Use **Preview** first to verify counts and estimated size before exporting.
 - Selective export minimizes accidental sharing.
 - Attachments/chat are excluded by default unless explicitly selected in policy.
 - Packages are encrypted and integrity checked before merge.
+
+## Local Marketplace + Course Registry (v0.9)
+
+### Marketplace workflow (`/marketplace`)
+1. Add a local folder source containing `*.triad369.zip` / `*.course.zip` packages.
+2. Scan source to discover available versions.
+3. Install selected package to create/update a registry item.
+4. Prepare update to a newer version (creates staged candidate course).
+5. Review diff (`/api/registry/diff`) and run merge plan/apply for conflicts.
+6. Commit update or rollback to a previous package version.
+
+### Safety promise
+- Offline marketplace only (no cloud, no telemetry).
+- User lesson edits are tracked and protected through merge planning.
+- Updates do not silently overwrite edited lessons.
+
+### Optional LAN catalog
+- Host can explicitly enable LAN catalog sharing.
+- Approved LAN clients can list/request shared package metadata only with token auth.

@@ -443,3 +443,58 @@ class SharePolicyToken(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime
     revoked_at: datetime | None = None
+
+
+class CourseRegistryItem(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    registry_slug: str = Field(index=True)
+    title: str
+    topic: str
+    source: str = 'local'
+    package_format: str = 'triad369-course@1'
+    installed_version: str = '0.0.0'
+    upstream_id_optional: str | None = None
+    last_checked_at: datetime | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CoursePackageRecord(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    registry_slug: str = Field(index=True)
+    version: str = '0.0.0'
+    file_path: str
+    sha256: str
+    imported_at: datetime = Field(default_factory=datetime.utcnow)
+    notes_optional: str | None = None
+
+
+class CourseEditLog(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    lesson_id: int = Field(index=True)
+    edit_kind: str = 'content'
+    base_version: str | None = None
+    edited_at: datetime = Field(default_factory=datetime.utcnow)
+    diff_json_optional: str | None = None
+
+
+class RegistrySource(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id: int = Field(index=True)
+    kind: str = 'folder'
+    name: str
+    path_or_url: str
+    enabled: bool = True
+    last_scan_at: datetime | None = None
+
+
+class CourseMergePlan(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    staged_course_id: int = Field(index=True)
+    old_course_id: int = Field(index=True)
+    detail_json: str = '{}'
+    created_at: datetime = Field(default_factory=datetime.utcnow)

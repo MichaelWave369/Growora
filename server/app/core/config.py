@@ -44,6 +44,9 @@ class Settings(BaseSettings):
         Path("server/data/extracted").mkdir(parents=True, exist_ok=True)
         Path("server/data/exports").mkdir(parents=True, exist_ok=True)
         Path("server/data/whiteboards").mkdir(parents=True, exist_ok=True)
+        Path("server/data/registry/packages").mkdir(parents=True, exist_ok=True)
+        Path("server/data/registry/indexes").mkdir(parents=True, exist_ok=True)
+        Path("server/data/registry/sources").mkdir(parents=True, exist_ok=True)
         return f"sqlite:///{self.db_path}"
 
     @property

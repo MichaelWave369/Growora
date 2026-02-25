@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, Route, Routes } from 'react-router-dom'
-import { BackupPage, ClassroomPage, ClassroomsPage, CourseEditPage, CoursePage, DashboardPage, ExportPage, FlashcardsPage, ForgePage, HomePage, IntakePage, JoinRoomPage, LanHostPage, LanSessionPage, LessonPage, LibraryPage, MasteryPage, ProfilesPage, SessionPage, SettingsPage, SkillMapPage, StudioImportPage, StudioPage, SyncSettingsPage, TodayPage, VerifyPage, FamilySharePage } from './pages'
+import { BackupPage, ClassroomPage, ClassroomsPage, CourseEditPage, CoursePage, DashboardPage, ExportPage, FlashcardsPage, ForgePage, HomePage, IntakePage, JoinRoomPage, LanHostPage, LanSessionPage, LessonPage, LibraryPage, MasteryPage, MarketplacePage, ProfilesPage, SessionPage, SettingsPage, SkillMapPage, StudioImportPage, StudioPage, SyncSettingsPage, TodayPage, VerifyPage, FamilySharePage } from './pages'
 import { api } from './api/client'
 
 export function App() {
@@ -10,7 +10,7 @@ export function App() {
   const [chat, setChat] = useState<any[]>([])
 
   const loadProfiles = () => api<any[]>('/api/profiles').then(setProfiles).catch(() => {})
-  useEffect(loadProfiles, [])
+  useEffect(() => { void loadProfiles() }, [])
   const switchProfile = async (id: string) => {
     localStorage.setItem('growora_profile_id', id)
     await api(`/api/profiles/${id}/select`, { method: 'POST' })
@@ -26,7 +26,7 @@ export function App() {
   return (
     <div className="app">
       <nav>
-        <Link to="/">Growora</Link> | <Link to="/profiles">Profiles</Link> | <Link to="/intake">Intake</Link> | <Link to="/today">Today</Link> | <Link to="/library">Library</Link> | <Link to="/forge">Forge</Link> | <Link to="/skillmap">SkillMap</Link> | <Link to="/mastery">Mastery</Link> | <Link to="/studio">Studio</Link> | <Link to="/flashcards">Flashcards</Link> | <Link to="/dashboard">Dashboard</Link> | <Link to="/export">Export</Link> | <Link to="/settings">Settings</Link> | <Link to="/settings/sync">Sync</Link> | <Link to="/family-share">Family Share</Link> | <Link to="/classrooms">Classroom</Link> | <Link to="/lan">LAN</Link> | <Link to="/settings/backup">Backup</Link>
+        <Link to="/">Growora</Link> | <Link to="/profiles">Profiles</Link> | <Link to="/intake">Intake</Link> | <Link to="/today">Today</Link> | <Link to="/library">Library</Link> | <Link to="/forge">Forge</Link> | <Link to="/skillmap">SkillMap</Link> | <Link to="/mastery">Mastery</Link> | <Link to="/studio">Studio</Link> | <Link to="/flashcards">Flashcards</Link> | <Link to="/dashboard">Dashboard</Link> | <Link to="/export">Export</Link> | <Link to="/settings">Settings</Link> | <Link to="/settings/sync">Sync</Link> | <Link to="/family-share">Family Share</Link> | <Link to="/marketplace">Marketplace</Link> | <Link to="/classrooms">Classroom</Link> | <Link to="/lan">LAN</Link> | <Link to="/settings/backup">Backup</Link>
         <select onChange={(e)=>switchProfile(e.target.value)} value={localStorage.getItem('growora_profile_id') || ''}>
           <option value="">Profile</option>
           {profiles.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
@@ -60,6 +60,7 @@ export function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/settings/sync" element={<SyncSettingsPage />} />
         <Route path="/family-share" element={<FamilySharePage />} />
+        <Route path="/marketplace" element={<MarketplacePage />} />
         <Route path="/settings/backup" element={<BackupPage />} />
         <Route path="/classrooms" element={<ClassroomsPage />} />
         <Route path="/classroom/:classroomId/session/:sessionId" element={<ClassroomPage />} />

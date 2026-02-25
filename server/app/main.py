@@ -17,6 +17,7 @@ from app.routers import (
     network,
     profiles,
     progress,
+    registry,
     quizzes,
     sessions,
     settings_network,
@@ -42,6 +43,7 @@ app.include_router(settings_network.router)
 app.include_router(profiles.router)
 app.include_router(courses.router)
 app.include_router(progress.router)
+app.include_router(registry.router)
 app.include_router(quizzes.router)
 app.include_router(family.router)
 app.include_router(flashcards.router)

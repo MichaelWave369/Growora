@@ -119,9 +119,12 @@ def patch_lesson(lesson_id: int, req: LessonPatch, request: Request, session: Se
     data = req.model_dump(exclude_none=True)
     if "exercises_json" in data:
         data["exercises_json"] = json.dumps(data["exercises_json"])
+    old_snapshot = {'title': lesson.title, 'content_md': lesson.content_md, 'exercises_json': lesson.exercises_json, 'quiz_json': lesson.quiz_json}
     for k, v in data.items(): setattr(lesson, k, v)
     lesson.user_edited = True
-    session.add(lesson); session.commit()
+    session.add(lesson)
+    session.add(CourseEditLog(profile_id=profile_id, course_id=lesson.course_id, lesson_id=lesson.id, edit_kind='content', base_version=None, diff_json_optional=json.dumps({'before': old_snapshot, 'after': data})))
+    session.commit()
     return {"ok": True}
 
 

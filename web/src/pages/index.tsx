@@ -8,7 +8,7 @@ export function ProfilesPage() {
   const [profiles, setProfiles] = useState<any[]>([])
   const [name, setName] = useState('')
   const load = ()=> api<any[]>('/api/profiles').then(setProfiles)
-  useEffect(load, [])
+  useEffect(() => { void load() }, [])
   const create = async ()=> { await api('/api/profiles', {method:'POST', body: JSON.stringify({display_name:name||'Learner', role:'adult', timezone:'UTC', day_start_time:'06:00'})}); setName(''); load() }
   return <div><h2>Profiles</h2><input value={name} onChange={e=>setName(e.target.value)} placeholder='Create your first learner'/><button onClick={create}>Create</button><pre>{JSON.stringify(profiles,null,2)}</pre></div>
 }
@@ -28,7 +28,7 @@ export function CoursePage() {
 
 export function CourseEditPage() {
   const { id } = useParams(); const [course, setCourse] = useState<any>(); const [lessons, setLessons] = useState<any[]>([])
-  const load = ()=> api<any>(`/api/courses/${id}`).then(d=>{setCourse(d.course); setLessons(d.lessons || [])}); useEffect(load, [id])
+  const load = ()=> api<any>(`/api/courses/${id}`).then(d=>{setCourse(d.course); setLessons(d.lessons || [])}); useEffect(() => { void load() }, [id])
   const save = async ()=>{ await api(`/api/courses/${id}`, {method:'PATCH', body: JSON.stringify({title: course.title, days_per_week: Number(course.days_per_week), minutes_per_day: Number(course.minutes_per_day), day_start_time: course.day_start_time, difficulty: course.difficulty})}); alert('Saved') }
   const moveLesson = async (idx:number, dir:number) => { const l = lessons[idx]; if(!l) return; await api(`/api/lessons/${l.id}`, {method:'PATCH', body: JSON.stringify({order_index: l.order_index + dir})}); load() }
   const regenWeek = async ()=>{ await api(`/api/courses/${id}/regen/week/1`, {method:'POST'}); load() }
@@ -58,7 +58,7 @@ export function LessonPage() { const { lessonId } = useParams(); return <div><h2
 
 export function LibraryPage() {
   const [docs, setDocs] = useState<any[]>([]); const [q, setQ] = useState(''); const [results, setResults] = useState<any[]>([])
-  const load = ()=> api<any[]>('/api/library/docs').then(setDocs); useEffect(load, [])
+  const load = ()=> api<any[]>('/api/library/docs').then(setDocs); useEffect(()=>{ void load() }, [])
   const upload = async (e: FormEvent<HTMLFormElement>) => { e.preventDefault(); const form = new FormData(e.currentTarget); const res = await fetch('/api/library/upload', {method:'POST', body: form, headers: {'X-Growora-Profile': localStorage.getItem('growora_profile_id') || ''}}); if(res.ok) load() }
   const doSearch = ()=> api<any[]>(`/api/library/search?q=${encodeURIComponent(q)}`).then(setResults)
   return <div><h2>Library</h2><form onSubmit={upload}><input name='tags' placeholder='tags'/><input name='file' type='file'/><button>Upload</button></form><pre>{JSON.stringify(docs,null,2)}</pre><input value={q} onChange={e=>setQ(e.target.value)}/><button onClick={doSearch}>Search</button><pre>{JSON.stringify(results,null,2)}</pre></div>
@@ -238,9 +238,14 @@ export function ClassroomPage() {
   }
 
   useEffect(()=>{ if(teachPrompt?.prompt) readText(teachPrompt.prompt) },[teachPrompt,readAloud])
+  const toggleKiosk = () => {
+    const next = !kiosk
+    setKiosk(next)
+    if (next) { void document.documentElement.requestFullscreen?.() }
+  }
 
   return <div style={{display:'grid',gridTemplateColumns:'240px 1fr 320px',gap:8}}>
-    <section><h3>Agenda</h3><pre>{JSON.stringify(detail?.agenda||[],null,2)}</pre><h4>Members</h4><pre>{JSON.stringify(detail?.members||[],null,2)}</pre><button onClick={()=>setKiosk(!kiosk)}>Kiosk {kiosk?'Off':'On'}</button>{kiosk&&document.documentElement.requestFullscreen?.()}</section>
+    <section><h3>Agenda</h3><pre>{JSON.stringify(detail?.agenda||[],null,2)}</pre><h4>Members</h4><pre>{JSON.stringify(detail?.members||[],null,2)}</pre><button onClick={toggleKiosk}>Kiosk {kiosk?'Off':'On'}</button></section>
     <section>
       <h3>Whiteboard</h3>
       <div><select value={drawMode} onChange={e=>setDrawMode(e.target.value as any)}><option>pen</option><option>erase</option><option>line</option><option>rect</option><option>circle</option><option>text</option></select>
@@ -496,5 +501,60 @@ export function FamilySharePage() {
     <h4>Parent → Kid course push</h4><button onClick={exportPush}>Export course bundle</button><button onClick={importPush}>Import course bundle</button>
     <h4>Kid → Parent progress back</h4><button onClick={createPolicy}>Create progress-only token</button>{policy && <pre>{JSON.stringify(policy,null,2)}</pre>}<button onClick={exportProgress}>Export progress bundle</button><button onClick={importProgress}>Import progress bundle</button>
     <pre>{JSON.stringify(out,null,2)}</pre>
+  </div>
+}
+
+export function MarketplacePage() {
+  const [profileId, setProfileId] = useState('1')
+  const [sourcePath, setSourcePath] = useState('server/tests/fixtures/registry')
+  const [sourceId, setSourceId] = useState<number | null>(null)
+  const [sources, setSources] = useState<any[]>([])
+  const [available, setAvailable] = useState<any[]>([])
+  const [installed, setInstalled] = useState<any[]>([])
+  const [packages, setPackages] = useState<any[]>([])
+  const [msg, setMsg] = useState<any>()
+
+  const load = async ()=>{
+    try { setSources(await api<any[]>(`/api/registry/sources?profile_id=${profileId}`)) } catch {}
+    try { setAvailable(await api<any[]>(`/api/registry/available?profile_id=${profileId}`)) } catch {}
+    try { setInstalled(await api<any[]>(`/api/registry/installed?profile_id=${profileId}`)) } catch {}
+    try { setPackages(await api<any[]>(`/api/registry/packages?profile_id=${profileId}`)) } catch {}
+  }
+  useEffect(()=>{ load() },[profileId])
+
+  const addSource = async ()=> {
+    const fd = new FormData(); fd.append('kind','folder'); fd.append('name','Local Folder'); fd.append('path',sourcePath); fd.append('profile_id', profileId)
+    const r = await fetch('/api/registry/sources', {method:'POST', body:fd}); const j = await r.json(); setSourceId(j.id); load()
+  }
+  const scan = async ()=> {
+    if(!sourceId && sources[0]) setSourceId(sources[0].id)
+    const sid = sourceId || sources[0]?.id
+    if(!sid) return
+    const fd = new FormData(); fd.append('profile_id', profileId)
+    const r = await fetch(`/api/registry/sources/${sid}/scan`, {method:'POST', body:fd}); setMsg(await r.json()); load()
+  }
+  const installLatest = async (slug:string)=>{
+    const g = available.find((x:any)=>x.registry_slug===slug)
+    if(!g) return
+    const latest = packages.filter((p:any)=>p.registry_slug===slug).sort((a:any,b:any)=> b.version.localeCompare(a.version))[0]
+    if(!latest) return
+    const fd = new FormData(); fd.append('package_record_id', String(latest.id)); fd.append('profile_id', profileId)
+    const r = await fetch('/api/registry/install', {method:'POST', body:fd}); setMsg(await r.json()); load()
+  }
+  const prepareUpdate = async (slug:string, version:string)=>{
+    const fd = new FormData(); fd.append('registry_slug', slug); fd.append('target_version', version); fd.append('profile_id', profileId)
+    const r = await fetch('/api/registry/update/prepare',{method:'POST', body:fd}); setMsg(await r.json())
+  }
+
+  return <div><h2>Offline Marketplace</h2><p>Offline marketplace, no cloud. Your edits are protected.</p>
+    <input value={profileId} onChange={e=>setProfileId(e.target.value)} placeholder='Profile id'/>
+    <h4>Sources</h4>
+    <input value={sourcePath} onChange={e=>setSourcePath(e.target.value)} placeholder='Folder path'/><button onClick={addSource}>Add Source</button><button onClick={scan}>Scan</button>
+    <pre>{JSON.stringify(sources,null,2)}</pre>
+    <h4>Available</h4>{available.map((a:any)=><div key={a.registry_slug}><b>{a.registry_slug}</b> latest {a.latest} <button onClick={()=>installLatest(a.registry_slug)}>Install latest</button> <button onClick={()=>prepareUpdate(a.registry_slug,a.latest)}>Prepare update</button></div>)}
+    <pre>{JSON.stringify(available,null,2)}</pre>
+    <h4>Installed / Updates</h4>
+    <pre>{JSON.stringify(installed,null,2)}</pre>
+    <pre>{JSON.stringify(msg,null,2)}</pre>
   </div>
 }
