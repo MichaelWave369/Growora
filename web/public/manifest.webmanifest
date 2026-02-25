@@ -1,0 +1,12 @@
+{
+  "name": "Growora",
+  "short_name": "Growora",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7fafc",
+  "theme_color": "#2563eb",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "128x128", "type": "image/svg+xml" },
+    { "src": "/icon.svg", "sizes": "128x128", "type": "image/svg+xml" }
+  ]
+}
