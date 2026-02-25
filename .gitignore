@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+node_modules/
+dist/
+.env
+server/data/growora.db
+server/data/exports/
+.pytest_cache/
