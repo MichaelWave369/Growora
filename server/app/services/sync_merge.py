@@ -28,7 +28,7 @@ def _json_dt(v):
 
 
 def _validate_manifest(manifest: dict[str, Any]):
-    if manifest.get('format') != 'triad369-sync@1':
+    if manifest.get('format') not in {'triad369-sync@1', 'triad369-sync@2'}:
         raise ValueError('Unsupported sync format')
     crypto = manifest.get('crypto') or {}
     if not crypto.get('salt') or not crypto.get('iterations'):
@@ -169,6 +169,7 @@ def merge_sync_payload(session: Session, manifest: dict[str, Any], ciphertext: b
         'warnings': [] if imported else ['No new events imported'],
         'source_device_id': device_id,
         'source_profile_name': profile_meta.get('display_name', 'unknown'),
+        'selection': manifest.get('selection') or payload.get('profile_export', {}).get('selection', {}),
     }
     audit = SyncAudit(action='import', profile_id=target_pid, device_id=device_id, status='ok', detail_json=json.dumps(summary))
     session.add(audit); session.commit(); session.refresh(audit)

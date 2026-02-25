@@ -370,6 +370,12 @@ export function SyncSettingsPage() {
   const [scope, setScope] = useState('learning_record_only')
   const [days, setDays] = useState('30')
   const [events, setEvents] = useState('1000')
+  const [courses, setCourses] = useState('')
+  const [concepts, setConcepts] = useState('')
+  const [types, setTypes] = useState('evidence,mastery,flashcards,sessions,certificates,classroom')
+  const [includePrereqs, setIncludePrereqs] = useState(false)
+  const [includeDependents, setIncludeDependents] = useState(false)
+  const [preview, setPreview] = useState<any>()
   const [passphrase, setPassphrase] = useState('')
   const [importPass, setImportPass] = useState('')
   const [result, setResult] = useState<any>()
@@ -377,6 +383,19 @@ export function SyncSettingsPage() {
 
   const loadAudit = ()=> api<any[]>('/api/sync/audit').then(setAudit).catch(()=>{})
   useEffect(()=>{ loadAudit() },[])
+  const buildSelection = () => ({
+    courses: courses.split(',').map(x=>Number(x.trim())).filter(Boolean),
+    concepts: concepts.split(',').map(x=>Number(x.trim())).filter(Boolean),
+    types: types.split(',').map(x=>x.trim()).filter(Boolean),
+    last_days: Number(days||'30'),
+    max_events: Number(events||'1000'),
+    include_prereqs: includePrereqs,
+    include_dependents: includeDependents,
+  })
+  const runPreview = async ()=> {
+    const r = await api<any>('/api/sync/preview', {method:'POST', body: JSON.stringify({profile_id: Number(profileId), selection: buildSelection()})})
+    setPreview(r)
+  }
 
   const exportPkg = async ()=> {
     const fd = new FormData()
@@ -385,6 +404,7 @@ export function SyncSettingsPage() {
     fd.append('days', days)
     fd.append('events', events)
     fd.append('passphrase', passphrase)
+    fd.append('selection_json', JSON.stringify(buildSelection()))
     const r = await fetch('/api/sync/export', { method:'POST', body: fd })
     if(!r.ok) return alert(await r.text())
     const blob = await r.blob()
@@ -413,13 +433,68 @@ export function SyncSettingsPage() {
     <select value={scope} onChange={e=>setScope(e.target.value)}><option>learning_record_only</option><option>include_sessions</option><option>include_notes</option></select>
     <input value={days} onChange={e=>setDays(e.target.value)} placeholder='Days'/>
     <input value={events} onChange={e=>setEvents(e.target.value)} placeholder='Events limit'/>
+    <input value={courses} onChange={e=>setCourses(e.target.value)} placeholder='Course ids csv'/>
+    <input value={concepts} onChange={e=>setConcepts(e.target.value)} placeholder='Concept ids csv (SkillMap filter)'/>
+    <input value={types} onChange={e=>setTypes(e.target.value)} placeholder='Types csv'/>
+    <label><input type='checkbox' checked={includePrereqs} onChange={e=>setIncludePrereqs(e.target.checked)}/>Include prerequisites</label>
+    <label><input type='checkbox' checked={includeDependents} onChange={e=>setIncludeDependents(e.target.checked)}/>Include dependents</label>
     <input type='password' value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder='Passphrase'/>
-    <button onClick={exportPkg}>Export .growora-sync.zip</button>
+    <button onClick={runPreview}>Preview selection</button><button onClick={exportPkg}>Export .growora-sync.zip</button><pre>{JSON.stringify(preview,null,2)}</pre>
     <h4>Import</h4>
     <input type='password' value={importPass} onChange={e=>setImportPass(e.target.value)} placeholder='Passphrase'/>
     <input type='file' accept='.zip,.growora-sync.zip' onChange={e=>importPkg(e.target.files?.[0])}/>
     <pre>{JSON.stringify(result,null,2)}</pre>
     <h4>Sync Audit</h4>
     <pre>{JSON.stringify(audit,null,2)}</pre>
+  </div>
+}
+
+export function FamilySharePage() {
+  const [fromProfile, setFromProfile] = useState('1')
+  const [targetProfile, setTargetProfile] = useState('1')
+  const [courseId, setCourseId] = useState('1')
+  const [passphrase, setPassphrase] = useState('')
+  const [bundleHex, setBundleHex] = useState('')
+  const [progressHex, setProgressHex] = useState('')
+  const [policy, setPolicy] = useState<any>()
+  const [out, setOut] = useState<any>()
+
+  const exportPush = async ()=> {
+    const fd = new FormData(); fd.append('from_profile_id', fromProfile); fd.append('to_profile_hint', 'Kid'); fd.append('course_id', courseId); fd.append('include_flashcards', '1'); fd.append('passphrase', passphrase)
+    const r = await fetch('/api/family/share/course_push/export',{method:'POST', body:fd}); setOut(await r.json());
+    const j = await (await fetch('/api/family/share/course_push/export',{method:'POST', body:fd})).json(); setBundleHex(j.bundle_b64 || '')
+  }
+  const importPush = async ()=> {
+    if(!bundleHex) return
+    const bytes = new Uint8Array(bundleHex.match(/.{1,2}/g)?.map((x)=>parseInt(x,16)) || [])
+    const fd = new FormData(); fd.append('file', new File([bytes], 'course_push.zip')); fd.append('passphrase', passphrase); fd.append('target_profile_id', targetProfile)
+    const r = await fetch('/api/family/share/course_push/import',{method:'POST', body:fd}); setOut(await r.json())
+  }
+
+  const createPolicy = async ()=> {
+    const fd = new FormData(); fd.append('course_id', courseId); fd.append('created_by_profile_id', fromProfile); fd.append('expires_days','30')
+    const r = await fetch('/api/family/policy/create',{method:'POST', body:fd}); setPolicy(await r.json())
+  }
+
+  const exportProgress = async ()=> {
+    const fd = new FormData(); fd.append('from_profile_id', targetProfile); fd.append('course_id', courseId); fd.append('last_days','30'); fd.append('passphrase', passphrase)
+    if(policy){ fd.append('policy_token_id', policy.token_id); fd.append('policy_token_secret', policy.token_secret) }
+    const j = await (await fetch('/api/family/share/progress_pull/export',{method:'POST', body:fd})).json(); setProgressHex(j.bundle_b64 || ''); setOut(j)
+  }
+  const importProgress = async ()=> {
+    if(!progressHex) return
+    const bytes = new Uint8Array(progressHex.match(/.{1,2}/g)?.map((x)=>parseInt(x,16)) || [])
+    const fd = new FormData(); fd.append('file', new File([bytes], 'progress_pull.zip')); fd.append('passphrase', passphrase); fd.append('target_profile_id', fromProfile)
+    const r = await fetch('/api/family/share/progress_pull/import',{method:'POST', body:fd}); setOut(await r.json())
+  }
+
+  return <div><h2>Family Share</h2><p>Selective sharing prevents accidental data leaks. Attachments are excluded by default.</p>
+    <input value={fromProfile} onChange={e=>setFromProfile(e.target.value)} placeholder='Parent profile id' />
+    <input value={targetProfile} onChange={e=>setTargetProfile(e.target.value)} placeholder='Kid profile id' />
+    <input value={courseId} onChange={e=>setCourseId(e.target.value)} placeholder='Course id' />
+    <input type='password' value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder='Passphrase' />
+    <h4>Parent → Kid course push</h4><button onClick={exportPush}>Export course bundle</button><button onClick={importPush}>Import course bundle</button>
+    <h4>Kid → Parent progress back</h4><button onClick={createPolicy}>Create progress-only token</button>{policy && <pre>{JSON.stringify(policy,null,2)}</pre>}<button onClick={exportProgress}>Export progress bundle</button><button onClick={importProgress}>Import progress bundle</button>
+    <pre>{JSON.stringify(out,null,2)}</pre>
   </div>
 }

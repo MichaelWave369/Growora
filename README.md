@@ -154,3 +154,26 @@ Growora supports **encrypted offline sync packages** (`*.growora-sync.zip`) so l
 - Learner uses pairing code in LAN session page and uploads sync package.
 - Pairing code is single-use and expires in 5 minutes.
 - Use private/home Wi-Fi only; avoid public networks.
+
+## Selective Sync + Family Sharing (v0.8)
+
+### Selective Sync wizard (`/settings/sync`)
+1. Choose profile
+2. Choose courses (CSV multi-select)
+3. Choose concept filters (SkillMap concept IDs), optionally include prerequisites/dependents
+4. Choose data types (`evidence`, `mastery`, `flashcards`, `sessions`, `classroom`, `certificates`)
+5. Choose timeframe (`last_days`) + max events
+6. Enter passphrase and export encrypted package
+
+Use **Preview** first to verify counts and estimated size before exporting.
+
+### Family sharing (`/family-share`)
+- **Course Push**: parent exports one selected course and kid imports it into a chosen target profile.
+- **Progress Pull**: kid exports course progress and parent imports it back.
+- **Progress-only token policy**: parent can create one-time token secrets (hashed at rest) that allow progress imports for a single course; expired/revoked tokens are rejected.
+
+### Safety defaults
+- Offline-only architecture, no cloud/telemetry.
+- Selective export minimizes accidental sharing.
+- Attachments/chat are excluded by default unless explicitly selected in policy.
+- Packages are encrypted and integrity checked before merge.

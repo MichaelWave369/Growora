@@ -431,3 +431,15 @@ class LanAuthToken(SQLModel, table=True):
     issued_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime
     client_id: int = Field(index=True)
+
+
+class SharePolicyToken(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    course_id: int = Field(index=True)
+    created_by_profile_id: int = Field(index=True)
+    mode: str = 'progress_only'
+    secret_hash: str = Field(index=True)
+    token_id: str = Field(index=True, unique=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+    revoked_at: datetime | None = None

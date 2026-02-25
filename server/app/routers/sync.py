@@ -1,7 +1,7 @@
 import json
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Request, UploadFile
+from fastapi import APIRouter, Body, Depends, File, Form, Header, HTTPException, Request, UploadFile
 from fastapi.responses import JSONResponse, Response
 from sqlmodel import Session, select
 
@@ -12,8 +12,23 @@ from app.models import LanRoom, LanSyncPairing, SyncAudit
 from app.services.lan import expires_in, hash_token, random_code
 from app.services.sync_merge import merge_sync_payload
 from app.services.sync_packager import build_sync_zip, parse_sync_zip
+from app.services.sync_select import build_selection_data
 
 router = APIRouter(prefix='/api', tags=['sync'])
+
+
+@router.post('/sync/preview', dependencies=[Depends(require_local_admin)])
+def sync_preview(payload: dict = Body(...), session: Session = Depends(get_session)):
+    profile_id = int(payload.get('profile_id'))
+    selection = payload.get('selection') or {}
+    selected = build_selection_data(session, profile_id, selection)
+    return {
+        'counts_by_type': selected.get('counts_by_type', {}),
+        'courses_included': selected.get('courses_included', []),
+        'concepts_included': selected.get('concepts_included', []),
+        'estimated_size': selected.get('estimated_size', 0),
+        'selection': selected.get('selection', {}),
+    }
 
 
 @router.post('/sync/export', dependencies=[Depends(require_local_admin)])
@@ -23,9 +38,11 @@ def sync_export(
     days: int | None = Form(default=None),
     events: int | None = Form(default=None),
     passphrase: str = Form(...),
+    selection_json: str | None = Form(default=None),
     session: Session = Depends(get_session),
 ):
-    blob = build_sync_zip(session, profile_id=profile_id, scope=scope, days=days, events=events, passphrase=passphrase)
+    selection = json.loads(selection_json) if selection_json else {'last_days': days, 'max_events': events}
+    blob = build_sync_zip(session, profile_id=profile_id, scope=scope, days=days, events=events, passphrase=passphrase, selection=selection)
     audit = SyncAudit(action='export', profile_id=profile_id, device_id='host-local', status='ok', detail_json=json.dumps({'scope': scope, 'bytes': len(blob)}))
     session.add(audit); session.commit()
     headers = {'Content-Disposition': f'attachment; filename="profile_{profile_id}_{datetime.utcnow().date()}.growora-sync.zip"'}

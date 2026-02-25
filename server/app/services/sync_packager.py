@@ -2,41 +2,20 @@ import io
 import json
 import uuid
 import zipfile
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.config import settings
-from app.models import (
-    Certificate,
-    ClassroomEvent,
-    Course,
-    Device,
-    EvidenceEvent,
-    MasteryState,
-    Profile,
-    ReviewLog,
-    SessionEvent,
-)
+from sqlmodel import select
+
+from app.models import Course, Device, Profile
 from app.services.sync_crypto import b64, derive_key, encrypt_json
+from app.services.sync_select import build_selection_data
 
 
-def _to_jsonable(model):
-    d = model.model_dump()
-    for k, v in list(d.items()):
-        if isinstance(v, datetime):
-            d[k] = v.isoformat()
-    return d
-
-
-def _cutoff(days: int | None):
-    if not days:
-        return None
-    return datetime.utcnow() - timedelta(days=days)
-
-
-def build_sync_payload(session: Session, profile_id: int, scope: str, days: int | None, events_limit: int | None) -> dict[str, Any]:
+def build_sync_payload(session: Session, profile_id: int, selection: dict[str, Any] | None = None) -> dict[str, Any]:
     profile = session.get(Profile, profile_id)
     if not profile:
         raise ValueError('Profile not found')
@@ -44,43 +23,45 @@ def build_sync_payload(session: Session, profile_id: int, scope: str, days: int 
     if not session.get(Device, device_id):
         session.add(Device(id=device_id))
         session.commit()
-    cutoff = _cutoff(days)
-    events_limit = min(events_limit or settings.growora_sync_default_events, settings.growora_sync_max_events)
 
+    selection = selection or {'types': ['evidence', 'mastery', 'flashcards', 'sessions', 'certificates', 'classroom'], 'last_days': settings.growora_sync_default_days, 'max_events': settings.growora_sync_default_events}
+    selected = build_selection_data(session, profile_id, selection)
     courses = session.exec(select(Course).where(Course.profile_id == profile_id)).all()
-
-    def limited(rows):
-        rows = rows if cutoff is None else [r for r in rows if getattr(r, 'ts', getattr(r, 'reviewed_at', datetime.utcnow())) >= cutoff]
-        return rows[:events_limit]
-
     payload = {
         'device_id': device_id,
         'profile_export': {
             'profile': {'display_name': profile.display_name, 'role': profile.role},
             'courses_summary': [{'id': c.id, 'title': c.title, 'topic': c.topic} for c in courses],
-            'learning_events': [_to_jsonable(e) for e in limited(session.exec(select(EvidenceEvent).where(EvidenceEvent.profile_id == profile_id).order_by(EvidenceEvent.ts.desc())).all())],
-            'session_events': [_to_jsonable(e) for e in limited(session.exec(select(SessionEvent).order_by(SessionEvent.ts.desc())).all())] if scope in {'include_sessions'} else [],
-            'classroom_events': [_to_jsonable(e) for e in limited(session.exec(select(ClassroomEvent).order_by(ClassroomEvent.ts.desc())).all())] if scope in {'include_sessions'} else [],
-            'mastery_snapshots': [_to_jsonable(m) for m in session.exec(select(MasteryState).where(MasteryState.profile_id == profile_id)).all()],
-            'review_logs': [_to_jsonable(r) for r in limited(session.exec(select(ReviewLog).where(ReviewLog.profile_id == profile_id).order_by(ReviewLog.reviewed_at.desc())).all())],
-            'certificates': [_to_jsonable(c) for c in session.exec(select(Certificate).where(Certificate.profile_id == profile_id)).all()],
+            'learning_events': selected.get('learning_events', []),
+            'session_events': selected.get('session_events', []),
+            'classroom_events': selected.get('classroom_events', []),
+            'mastery_snapshots': selected.get('mastery_snapshots', []),
+            'review_logs': selected.get('review_logs', []),
+            'certificates': selected.get('certificates', []),
+            'selection': selected.get('selection', {}),
+            'counts_by_type': selected.get('counts_by_type', {}),
         }
     }
     return payload
 
 
-def build_sync_zip(session: Session, profile_id: int, scope: str, days: int | None, events: int | None, passphrase: str) -> bytes:
-    payload = build_sync_payload(session, profile_id, scope, days, events)
+def build_sync_zip(session: Session, profile_id: int, scope: str, days: int | None, events: int | None, passphrase: str, selection: dict[str, Any] | None = None) -> bytes:
+    if selection is None:
+        selection = {'types': ['evidence', 'mastery', 'flashcards', 'sessions', 'certificates', 'classroom'], 'last_days': days, 'max_events': events}
+    payload = build_sync_payload(session, profile_id, selection)
     salt = uuid.uuid4().bytes
     key = derive_key(passphrase, salt, settings.growora_sync_kdf_iterations)
     enc, nonce, payload_sha = encrypt_json(payload, key)
     manifest = {
-        'format': 'triad369-sync@1',
+        'format': 'triad369-sync@2',
         'app': 'growora',
         'created_at': datetime.utcnow().isoformat(),
         'exporting_profile_id': str(uuid.uuid5(uuid.NAMESPACE_DNS, f'profile:{profile_id}')),
         'exporting_device_id': payload['device_id'],
         'scope': scope,
+        'selection': payload['profile_export'].get('selection', {}),
+        'policy': {'direction': selection.get('direction', 'two_way'), 'conflict': 'event_sourced'},
+        'privacy': {'include_raw_chat': bool(selection.get('include_raw_chat', False)), 'include_attachments': bool(selection.get('include_attachments', False))},
         'crypto': {
             'kdf': 'pbkdf2-hmac-sha256',
             'cipher': 'stream+hmac-sha256',

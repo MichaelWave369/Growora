@@ -8,6 +8,7 @@ from app.routers import (
     classrooms,
     courses,
     drills,
+    family,
     flashcards,
     forge,
     graph,
@@ -42,6 +43,7 @@ app.include_router(profiles.router)
 app.include_router(courses.router)
 app.include_router(progress.router)
 app.include_router(quizzes.router)
+app.include_router(family.router)
 app.include_router(flashcards.router)
 app.include_router(library.router)
 app.include_router(sessions.router)
