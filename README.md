@@ -1,16 +1,26 @@
-# Growora
+# Growora v0.2 — Super Tutor
 
 **Natural language → your personal tutor (offline-first).**
 
-> Tell me what you want to learn. Growora builds an 8-week curriculum with daily practice, quizzes, progress tracking, and SM-2 flashcards — locally.
+Growora builds an 8-week course with daily exercises, quizzes, SM-2 flashcards, adaptive planning, and a local knowledge library (PDF/MD/TXT).
 
 ## Offline promise
-- Default mode is `GROWORA_NETWORK_MODE=offline`.
-- No telemetry, no scraping, no hidden outbound calls.
-- In offline mode, only localhost calls are allowed (e.g., local Ollama).
-- Data is stored in local SQLite at `server/data/growora.db`.
+- Default mode: `GROWORA_NETWORK_MODE=offline`
+- No telemetry, no scraping, no hidden outbound calls
+- Offline mode allows localhost only
+- Online mode allows only `GROWORA_ALLOWED_HOSTS`
+- SQLite local DB: `server/data/growora.db`
 
-## Monorepo layout
+## New in v0.2
+- **Knowledge Library**: upload/search/tag/delete documents at `/library`
+- **Adaptive planner**: smarter `/today` + next 7-day preview
+- **Course editor**: `/course/:id/edit` title/schedule/difficulty/reorder/regen week
+- **Triad369 package**: export/import/validate course zips
+- **Safer CoEvo publish**: test connection + dry-run + publish logs
+- **Certificate verify**: `/verify/:cert_id`
+- **Release tooling**: scripts for github-ready zip and sample course spec
+
+## Monorepo
 - `server/` FastAPI + SQLModel + SQLite
 - `web/` React + Vite + TypeScript
 
@@ -21,13 +31,8 @@ source .venv/bin/activate
 pip install -r server/requirements.txt
 cd web && npm install && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
-# in another terminal
+# new terminal
 cd web && npm run dev
-```
-
-Or one command:
-```bash
-./run_unix.sh
 ```
 
 ## Quickstart (Windows)
@@ -37,32 +42,48 @@ python -m venv .venv
 pip install -r server\requirements.txt
 cd web && npm install && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
-:: in another terminal
+:: new terminal
 cd web && npm run dev
 ```
 
-Or one-click:
-```bat
-run_windows.bat
+## Optional Ollama (local LLM)
+- `GROWORA_LLM_PROVIDER=ollama`
+- `GROWORA_OLLAMA_URL=http://localhost:11434`
+- `GROWORA_OLLAMA_MODEL=llama3.1`
+
+If not set, deterministic template generation is used.
+
+## Library (attachments + search)
+- Upload: `POST /api/library/upload` (multipart)
+- Search: `GET /api/library/search?q=...`
+- Stored files: `server/data/uploads/`
+- Extracted text cache: `server/data/extracted/`
+
+## Adaptive planner
+- `GET /api/courses/{id}/plan/today`
+- `GET /api/courses/{id}/plan/next7`
+- Uses completion + quiz signals + missed-day rollover
+
+## Triad369 export/import
+- Export: `POST /api/export/triad369/{course_id}`
+- Import: `POST /api/import/triad369`
+- Validate: `POST /api/export/triad369/validate`
+
+## Safe CoEvo publish (optional opt-in)
+- Configure `COEVO_URL` + `COEVO_API_KEY`
+- Test connection: `GET /api/publish/test`
+- Dry run publish: `POST /api/publish/coevo/{id}?dry_run=1`
+- Real publish: `POST /api/publish/coevo/{id}?dry_run=0`
+- Logs: `GET /api/publish/logs`
+
+## Release tooling
+```bash
+python scripts/make_release_zip.py
+python scripts/make_course_sample.py
 ```
-
-## Optional local LLM (Ollama)
-1. Install Ollama and run a local model:
-   `ollama run llama3.1`
-2. Set env:
-   - `GROWORA_LLM_PROVIDER=ollama`
-   - `GROWORA_OLLAMA_URL=http://localhost:11434`
-   - `GROWORA_OLLAMA_MODEL=llama3.1`
-
-If not configured, Growora uses deterministic template generation and still works fully offline.
-
-## Export and optional publish
-- Export: `POST /api/export/course/{course_id}` creates a zip in `server/data/exports/`.
-- Publish to CoEvo (optional): configure `COEVO_URL` + `COEVO_API_KEY`, then call `POST /api/publish/coevo/{course_id}`.
-- Without config, API returns a helpful `400` and stays in export-only mode.
-
-## Environment variables
-See `.env.example`.
+Outputs:
+- `dist/growora-github-ready.zip`
+- `dist/sample_course_spec.json`
 
 ## License
 MIT

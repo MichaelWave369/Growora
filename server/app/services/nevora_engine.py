@@ -1,21 +1,16 @@
 import json
 from typing import Any
+
 import httpx
 
 from app.core.config import settings
-
-
-def _allow_url(url: str) -> bool:
-    if settings.growora_network_mode == "online":
-        return True
-    return "localhost" in url or "127.0.0.1" in url
+from app.services.network_guard import ensure_url_allowed
 
 
 def enrich_with_llm(prompt: str) -> str:
     if settings.growora_llm_provider != "ollama":
         return ""
-    if not _allow_url(settings.growora_ollama_url):
-        return ""
+    ensure_url_allowed(settings.growora_ollama_url)
     try:
         with httpx.Client(timeout=20) as client:
             r = client.post(
@@ -35,11 +30,10 @@ def build_worksheet(topic: str, level: str, day: int) -> str:
 
 
 def build_flashcards(topic: str, count: int = 8) -> list[dict[str, Any]]:
-    cards = [
+    return [
         {"front": f"{topic}: key idea {i+1}?", "back": f"Definition/explanation for key idea {i+1}", "tags": [topic, "core"]}
         for i in range(count)
     ]
-    return cards
 
 
 def build_quiz(topic: str) -> dict[str, Any]:

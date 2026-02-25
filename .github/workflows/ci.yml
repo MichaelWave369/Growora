@@ -20,5 +20,14 @@ jobs:
           pip install -r server/requirements.txt
       - name: Compile
         run: python -m compileall server/app
-      - name: Test
+      - name: Test server
         run: PYTHONPATH=server pytest -q server/tests
+      - name: Setup node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build web
+        run: |
+          cd web
+          npm ci
+          npm run build

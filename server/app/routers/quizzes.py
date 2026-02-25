@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
 from app.db import get_session
-from app.models import Lesson
+from app.models import Lesson, QuizAttempt
 
 router = APIRouter(prefix="/api", tags=["quizzes"])
 
@@ -36,4 +36,6 @@ def grade_quiz(lesson_id: int, req: GradeRequest, session: Session = Depends(get
                 score += 1
             elif q.get("type") == "short" and str(ans).strip():
                 score += 1
+    attempt = QuizAttempt(lesson_id=lesson_id, score=score, total=len(questions))
+    session.add(attempt); session.commit()
     return {"score": score, "total": len(questions)}

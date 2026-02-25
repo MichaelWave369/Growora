@@ -6,4 +6,6 @@ dist/
 .env
 server/data/growora.db
 server/data/exports/
+server/data/uploads/
+server/data/extracted/
 .pytest_cache/
