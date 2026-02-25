@@ -75,3 +75,25 @@ Outputs:
 - `dist/growora-github-ready.zip`
 - `dist/sample_course_spec.json`
 - `dist/demo_triad369_with_skillgraph.json`
+
+
+## Classroom Mode (v0.5)
+- Create classroom: `/classrooms`
+- Start live session: `/classroom/:classroomId/session/:sessionId`
+- Whiteboard supports pen/erase/shapes/text, undo/redo, snapshot and PNG export.
+- Presenter mode can generate decks from lessons/concepts and push slides.
+- Live quizzes and teach-back scoring work offline and update mastery per learner profile.
+- Session summary includes attendance, engagement, quiz/teachback outcomes and next steps.
+
+### Running multiple learners on one machine
+- Create multiple profiles in `/profiles`.
+- Add profile IDs as classroom members.
+- Switch active profile from top nav profile selector.
+
+### Offline scoring details
+- Teach-back scoring uses local keyword/rubric heuristics when no LLM is configured.
+- Live quiz and teach-back mastery updates are profile-specific.
+
+### Screenshot placeholders
+- `docs/screenshots/classroom-session.png` (placeholder)
+- `docs/screenshots/classroom-summary.png` (placeholder)

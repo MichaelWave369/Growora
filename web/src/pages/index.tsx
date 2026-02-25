@@ -130,3 +130,124 @@ export function BackupPage() {
   const restore = async (e: FormEvent<HTMLFormElement>)=>{ e.preventDefault(); const fd=new FormData(e.currentTarget); const r=await fetch('/api/backup/restore',{method:'POST',body:fd,headers:{'X-Growora-Profile': localStorage.getItem('growora_profile_id')||''}}); setStatus(await r.text()) }
   return <div><h2>Backup & Restore</h2><form onSubmit={create}><label><input type='checkbox' name='include_attachments'/>Include attachments</label><label><input type='checkbox' name='include_exports' defaultChecked/>Include exports</label><button>Create backup</button></form><form onSubmit={restore}><input type='file' name='file'/><label><input type='checkbox' name='overwrite'/>Overwrite DB</label><button>Restore backup</button></form><pre>{status}</pre></div>
 }
+
+export function ClassroomsPage() {
+  const [rooms, setRooms] = useState<any[]>([])
+  const [name, setName] = useState('Family Classroom')
+  const [courseId, setCourseId] = useState<number | null>(null)
+  const [profiles, setProfiles] = useState<any[]>([])
+  const [selectedProfile, setSelectedProfile] = useState<number | null>(null)
+  const nav = useNavigate()
+  const load = async ()=>{
+    setRooms(await api<any[]>('/api/classrooms'))
+    const cs = await api<any[]>('/api/courses'); if(cs[0]) setCourseId(cs[0].id)
+    const ps = await api<any[]>('/api/profiles'); setProfiles(ps); if(ps[0]) setSelectedProfile(ps[0].id)
+  }
+  useEffect(()=>{ load() },[])
+  const create = async ()=>{ await api('/api/classrooms',{method:'POST',body:JSON.stringify({name})}); load() }
+  const start = async (id:number)=>{ if(!courseId) return; const s=await api<any>(`/api/classrooms/${id}/sessions/start`,{method:'POST',body:JSON.stringify({course_id:courseId,agenda:['Warmup','Practice','Teach-back'],mode:'live',title:'Live tutoring'})}); nav(`/classroom/${id}/session/${s.id}`) }
+  const addMember = async (id:number)=>{ if(!selectedProfile) return; await api(`/api/classrooms/${id}/members`,{method:'POST',body:JSON.stringify({profile_id:selectedProfile,role:'learner'})}); load() }
+  return <div><h2>Classroom Mode</h2><input value={name} onChange={e=>setName(e.target.value)}/><button onClick={create}>Create classroom</button>
+    <div><label>Add member profile:</label><select value={selectedProfile || ''} onChange={e=>setSelectedProfile(Number(e.target.value))}><option value=''>select</option>{profiles.map(p=><option key={p.id} value={p.id}>{p.display_name}</option>)}</select></div>
+    <ul>{rooms.map(r=><li key={r.id}>{r.name} <button onClick={()=>addMember(r.id)}>Add member</button> <button onClick={()=>start(r.id)}>Start session</button></li>)}</ul></div>
+}
+
+export function ClassroomPage() {
+  const { classroomId, sessionId } = useParams()
+  const [detail, setDetail] = useState<any>()
+  const [summary, setSummary] = useState<any>()
+  const [drawMode, setDrawMode] = useState<'pen'|'erase'|'line'|'rect'|'circle'|'text'>('pen')
+  const [kiosk, setKiosk] = useState(false)
+  const canvasRef = (globalThis as any).__classCanvasRef || ((globalThis as any).__classCanvasRef = { current: null as HTMLCanvasElement | null })
+  const [stack, setStack] = useState<string[]>([])
+  const [redoStack, setRedoStack] = useState<string[]>([])
+  const [chatQ, setChatQ] = useState('')
+  const [deck, setDeck] = useState<any>()
+  const [slideIdx, setSlideIdx] = useState(0)
+  const [liveQuiz, setLiveQuiz] = useState<any>()
+  const [teachPrompt, setTeachPrompt] = useState<any>()
+  const [teachResp, setTeachResp] = useState('')
+  const [readAloud, setReadAloud] = useState(false)
+  const [dictate, setDictate] = useState(false)
+
+  const load = ()=> api<any>(`/api/classrooms/sessions/${sessionId}`).then(setDetail)
+  useEffect(()=>{ load(); const t=setInterval(load,1500); return ()=>clearInterval(t)},[sessionId])
+
+  useEffect(()=>{
+    const c = canvasRef.current as HTMLCanvasElement | null
+    if(!c) return
+    const ctx = c.getContext('2d')!
+    ctx.lineWidth = 2; ctx.strokeStyle = '#0f172a'; ctx.lineCap = 'round'
+    let drawing=false, sx=0, sy=0
+    const pos=(e:any)=>{
+      const r=c.getBoundingClientRect();
+      const t=e.touches?.[0];
+      return {x:(t?t.clientX:e.clientX)-r.left,y:(t?t.clientY:e.clientY)-r.top}
+    }
+    const down=(e:any)=>{ drawing=true; const p=pos(e); sx=p.x; sy=p.y; if(drawMode==='text'){ const txt=prompt('Text')||''; ctx.fillText(txt,sx,sy); sendDraw({mode:'text',x:sx,y:sy,text:txt}); snapshot() } }
+    const move=(e:any)=>{ if(!drawing || drawMode==='text') return; e.preventDefault?.(); const p=pos(e); if(drawMode==='pen'||drawMode==='erase'){ ctx.globalCompositeOperation = drawMode==='erase'?'destination-out':'source-over'; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x,p.y); ctx.stroke(); sendDraw({mode:drawMode,from:[sx,sy],to:[p.x,p.y]}); sx=p.x; sy=p.y } }
+    const up=(e:any)=>{ if(!drawing) return; drawing=false; const p=pos(e); if(['line','rect','circle'].includes(drawMode)){ ctx.globalCompositeOperation='source-over'; if(drawMode==='line'){ ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(p.x,p.y); ctx.stroke() } if(drawMode==='rect'){ ctx.strokeRect(sx,sy,p.x-sx,p.y-sy) } if(drawMode==='circle'){ const r=Math.hypot(p.x-sx,p.y-sy); ctx.beginPath(); ctx.arc(sx,sy,r,0,Math.PI*2); ctx.stroke() } sendDraw({mode:drawMode,from:[sx,sy],to:[p.x,p.y]}) }
+      snapshot()
+    }
+    c.addEventListener('mousedown',down); c.addEventListener('mousemove',move); window.addEventListener('mouseup',up)
+    c.addEventListener('touchstart',down,{passive:false}); c.addEventListener('touchmove',move,{passive:false}); window.addEventListener('touchend',up)
+    return ()=>{ c.removeEventListener('mousedown',down); c.removeEventListener('mousemove',move); window.removeEventListener('mouseup',up); c.removeEventListener('touchstart',down as any); c.removeEventListener('touchmove',move as any); window.removeEventListener('touchend',up as any)}
+  },[drawMode])
+
+  const sendDraw = async (payload:any)=> api(`/api/classrooms/sessions/${sessionId}/event`,{method:'POST',body:JSON.stringify({type:'draw',payload})})
+  const snapshot = ()=>{
+    const c = canvasRef.current as HTMLCanvasElement | null; if(!c) return
+    const data = c.toDataURL('image/png'); setStack([...stack,data]); setRedoStack([])
+  }
+  const undo = ()=>{ if(stack.length<2) return; const c=canvasRef.current as HTMLCanvasElement; const ctx=c.getContext('2d')!; const ns=[...stack]; const last=ns.pop()!; setRedoStack([...redoStack,last]); const img=new Image(); img.onload=()=>{ctx.clearRect(0,0,c.width,c.height); ctx.drawImage(img,0,0)}; img.src=ns[ns.length-1]; setStack(ns) }
+  const redo = ()=>{ if(!redoStack.length) return; const c=canvasRef.current as HTMLCanvasElement; const ctx=c.getContext('2d')!; const rs=[...redoStack]; const imgData=rs.pop()!; const img=new Image(); img.onload=()=>{ctx.drawImage(img,0,0)}; img.src=imgData; setRedoStack(rs); setStack([...stack,imgData]) }
+  const clearBoard = ()=>{ const c=canvasRef.current as HTMLCanvasElement; c.getContext('2d')!.clearRect(0,0,c.width,c.height); snapshot() }
+  const saveBoard = async ()=>{ const c=canvasRef.current as HTMLCanvasElement; const blob=await new Promise<Blob|null>(r=>c.toBlob(r)); if(!blob) return; const fd=new FormData(); fd.append('file',blob,'snapshot.png'); await fetch(`/api/classrooms/sessions/${sessionId}/whiteboard/snapshot`,{method:'POST',body:fd}) }
+  const exportPNG = ()=>{ const c=canvasRef.current as HTMLCanvasElement; const a=document.createElement('a'); a.href=c.toDataURL('image/png'); a.download=`whiteboard_${sessionId}.png`; a.click() }
+
+  const makeDeck = async ()=>{ const cs=await api<any[]>(`/api/courses`); if(!cs[0]) return; const c=await api<any>(`/api/courses/${cs[0].id}`); const lesson=c.lessons?.[0]; if(!lesson) return; const d=await api<any>(`/api/classrooms/sessions/${sessionId}/deck/from_lesson?lesson_id=${lesson.id}`,{method:'POST'}); setDeck(await api<any>(`/api/classrooms/sessions/${sessionId}/deck/${d.id}`)); setSlideIdx(0) }
+  const present = async ()=>{ if(!deck?.deck?.id) return; await api(`/api/classrooms/sessions/${sessionId}/present`,{method:'POST',body:JSON.stringify({deck_id:deck.deck.id,slide_index:slideIdx})}) }
+
+  const createQuiz = async ()=>{ const cs=await api<any[]>('/api/courses'); if(!cs[0]) return; await api(`/api/graph/rebuild?course_id=${cs[0].id}`,{method:'POST'}); const g=await api<any>(`/api/graph?course_id=${cs[0].id}`); const concept=g.concepts?.[0]; const q=await api<any>(`/api/classrooms/sessions/${sessionId}/livequiz/create`,{method:'POST',body:JSON.stringify({title:'Quick poll',concept_id:concept?.id,questions_json:[{prompt:'Do you get it?',answer:'yes'}]})}); await api(`/api/classrooms/livequiz/${q.id}/open`,{method:'POST'}); setLiveQuiz(q) }
+  const submitQuiz = async ()=>{ const pid=Number(localStorage.getItem('growora_profile_id')||0); if(!liveQuiz||!pid) return; await api(`/api/classrooms/livequiz/${liveQuiz.id}/submit`,{method:'POST',body:JSON.stringify({profile_id:pid,answers:['yes']})}); alert('Submitted') }
+
+  const createTeach = async ()=>{ const cs=await api<any[]>('/api/courses'); if(!cs[0]) return; const g=await api<any>(`/api/graph?course_id=${cs[0].id}`); const concept=g.concepts?.[0]; if(!concept) return; const p=await api<any>(`/api/classrooms/sessions/${sessionId}/teachback/create`,{method:'POST',body:JSON.stringify({concept_id:concept.id})}); setTeachPrompt(p) }
+  const submitTeach = async ()=>{ const pid=Number(localStorage.getItem('growora_profile_id')||0); if(!teachPrompt||!pid) return; const r=await api<any>(`/api/classrooms/teachback/${teachPrompt.id}/submit`,{method:'POST',body:JSON.stringify({profile_id:pid,response_text:teachResp})}); alert(r.feedback_md) }
+  const applyTeach = async ()=>{ if(!teachPrompt) return; await api(`/api/classrooms/teachback/${teachPrompt.id}/apply_mastery`,{method:'POST'}); alert('Applied to mastery') }
+
+  const confused = async ()=>{ await api(`/api/classrooms/sessions/${sessionId}/event`,{method:'POST',body:JSON.stringify({type:'confused',payload:{q:chatQ}})}); setChatQ('') }
+  const endSession = async ()=>{ await api(`/api/classrooms/sessions/${sessionId}/end`,{method:'POST'}); setSummary(await api<any>(`/api/classrooms/sessions/${sessionId}/summary`)) }
+  const assignHomework = async ()=>{ const members=detail?.members||[]; const refs=[1,2,3]; for(const m of members){ await api(`/api/classrooms/sessions/${sessionId}/assign`,{method:'POST',body:JSON.stringify({profile_id:m.profile_id,kind:'drill',ref_id:refs[0]})}) } alert('Homework assigned') }
+  const summaryPdf = ()=>{ const w=window.open('','_blank'); if(!w||!summary) return; w.document.write('<pre>'+JSON.stringify(summary,null,2)+'</pre>'); w.print() }
+  const startNext = ()=> window.location.reload()
+
+  const readText = (t:string)=>{ if(readAloud && 'speechSynthesis' in window){ const u=new SpeechSynthesisUtterance(t); window.speechSynthesis.speak(u) } }
+  const doDictate = ()=>{
+    const SR=(window as any).webkitSpeechRecognition || (window as any).SpeechRecognition
+    if(!dictate || !SR) return
+    const rec = new SR(); rec.lang='en-US'; rec.onresult=(e:any)=> setTeachResp((e.results?.[0]?.[0]?.transcript)||teachResp); rec.start()
+  }
+
+  useEffect(()=>{ if(teachPrompt?.prompt) readText(teachPrompt.prompt) },[teachPrompt,readAloud])
+
+  return <div style={{display:'grid',gridTemplateColumns:'240px 1fr 320px',gap:8}}>
+    <section><h3>Agenda</h3><pre>{JSON.stringify(detail?.agenda||[],null,2)}</pre><h4>Members</h4><pre>{JSON.stringify(detail?.members||[],null,2)}</pre><button onClick={()=>setKiosk(!kiosk)}>Kiosk {kiosk?'Off':'On'}</button>{kiosk&&document.documentElement.requestFullscreen?.()}</section>
+    <section>
+      <h3>Whiteboard</h3>
+      <div><select value={drawMode} onChange={e=>setDrawMode(e.target.value as any)}><option>pen</option><option>erase</option><option>line</option><option>rect</option><option>circle</option><option>text</option></select>
+      <button onClick={undo}>Undo</button><button onClick={redo}>Redo</button><button onClick={clearBoard}>Clear</button><button onClick={saveBoard}>Save Snapshot</button><button onClick={exportPNG}>Export PNG</button></div>
+      <canvas ref={(el)=>{canvasRef.current=el}} width={800} height={440} style={{border:'1px solid #ccc',touchAction:'none'}} />
+      <h4>Presenter</h4><button onClick={makeDeck}>Generate Deck</button><button onClick={()=>setSlideIdx(Math.max(0,slideIdx-1))}>Prev</button><button onClick={()=>setSlideIdx(slideIdx+1)}>Next</button><button onClick={present}>Push slide</button><pre>{JSON.stringify(deck?.slides?.[slideIdx]||{},null,2)}</pre>
+      <h4>Learner quick signal</h4><input value={chatQ} onChange={e=>setChatQ(e.target.value)} placeholder="I'm confused because..."/><button onClick={confused}>Send</button>
+    </section>
+    <section>
+      <h3>Teacher Panel</h3>
+      <button onClick={createQuiz}>Create Live Quiz</button><button onClick={submitQuiz}>Submit as learner</button>
+      <button onClick={createTeach}>Create Teach-back</button><textarea value={teachResp} onChange={e=>setTeachResp(e.target.value)} placeholder='Explain concept in your words' /><button onClick={submitTeach}>Submit Teach-back</button><button onClick={applyTeach}>Apply to Mastery</button>
+      <div><label><input type='checkbox' checked={readAloud} onChange={e=>setReadAloud(e.target.checked)} />Read instructions aloud</label></div>
+      <div><label><input type='checkbox' checked={dictate} onChange={e=>setDictate(e.target.checked)} />Dictate teach-back</label><button onClick={doDictate}>Start dictation</button></div>
+      <button onClick={endSession}>End Session</button>
+      {summary && <><h4>Session Summary</h4><pre>{JSON.stringify(summary,null,2)}</pre><button onClick={summaryPdf}>Export Summary PDF</button><button onClick={assignHomework}>Assign homework</button><button onClick={startNext}>Start next session</button></>}
+    </section>
+  </div>
+}

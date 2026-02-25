@@ -257,3 +257,105 @@ class JobRecord(SQLModel, table=True):
     status: str = "queued"
     detail: str = ""
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class Classroom(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    profile_id_owner: int = Field(index=True)
+    name: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ClassroomMember(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    classroom_id: int = Field(index=True)
+    profile_id: int = Field(index=True)
+    role: str = "learner"
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ClassroomSession(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    classroom_id: int = Field(index=True)
+    course_id: int = Field(index=True)
+    started_at: datetime = Field(default_factory=datetime.utcnow)
+    ended_at: datetime | None = None
+    mode: str = "live"
+    title: str = "Classroom Session"
+    agenda_json: str = "[]"
+    notes_md: str = ""
+
+
+class ClassroomSessionMember(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    profile_id: int = Field(index=True)
+    joined_at: datetime = Field(default_factory=datetime.utcnow)
+    left_at: datetime | None = None
+    state_json: str = "{}"
+
+
+class ClassroomEvent(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    ts: datetime = Field(default_factory=datetime.utcnow)
+    type: str
+    payload_json: str = "{}"
+
+
+class Assignment(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    profile_id: int = Field(index=True)
+    kind: str
+    ref_id: int
+    status: str = "assigned"
+    assigned_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: datetime | None = None
+    score: float | None = None
+
+
+class SlideDeck(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    title: str
+    slides_json: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class LiveQuiz(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    title: str
+    questions_json: str
+    concept_id: int | None = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    status: str = "draft"
+
+
+class LiveQuizResponse(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    live_quiz_id: int = Field(index=True)
+    profile_id: int = Field(index=True)
+    answers_json: str
+    score: float
+    submitted_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TeachbackPrompt(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    session_id: int = Field(index=True)
+    concept_id: int = Field(index=True)
+    prompt: str
+    rubric_json: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class TeachbackSubmission(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    prompt_id: int = Field(index=True)
+    profile_id: int = Field(index=True)
+    response_text: str
+    score_json: str
+    feedback_md: str
+    submitted_at: datetime = Field(default_factory=datetime.utcnow)
