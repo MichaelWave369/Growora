@@ -1,0 +1,5 @@
+body { font-family: Inter, Arial, sans-serif; margin: 0; background: #f7fafc; color:#0f172a; }
+.app { padding: 20px; max-width: 960px; margin: 0 auto; }
+nav { margin-bottom: 16px; }
+input, button { padding: 8px; margin-right: 8px; }
+pre { background:#e2e8f0; padding:10px; border-radius:8px; overflow:auto; }
