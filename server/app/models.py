@@ -1,4 +1,5 @@
 from datetime import datetime
+import uuid
 from typing import Optional
 from sqlmodel import SQLModel, Field
 
@@ -69,6 +70,8 @@ class Flashcard(SQLModel, table=True):
 
 class ReviewLog(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    global_event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True, unique=True)
+    device_id: str = Field(default='host-local', index=True)
     profile_id: int = Field(index=True)
     flashcard_id: int = Field(index=True)
     reviewed_at: datetime = Field(default_factory=datetime.utcnow)
@@ -143,6 +146,8 @@ class StudySession(SQLModel, table=True):
 
 class SessionEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    global_event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True, unique=True)
+    device_id: str = Field(default='host-local', index=True)
     session_id: int = Field(index=True)
     ts: datetime = Field(default_factory=datetime.utcnow)
     type: str
@@ -229,6 +234,8 @@ class MasteryState(SQLModel, table=True):
 
 class EvidenceEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    global_event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True, unique=True)
+    device_id: str = Field(default='host-local', index=True)
     profile_id: int = Field(index=True)
     course_id: int = Field(index=True)
     concept_id: int = Field(index=True)
@@ -297,6 +304,8 @@ class ClassroomSessionMember(SQLModel, table=True):
 
 class ClassroomEvent(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
+    global_event_id: str = Field(default_factory=lambda: str(uuid.uuid4()), index=True, unique=True)
+    device_id: str = Field(default='host-local', index=True)
     session_id: int = Field(index=True)
     ts: datetime = Field(default_factory=datetime.utcnow)
     type: str
@@ -385,6 +394,35 @@ class LanClient(SQLModel, table=True):
     permissions_json: str = "{}"
     status: str = "pending"
 
+
+
+
+class Device(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    first_seen_at: datetime = Field(default_factory=datetime.utcnow)
+    label_optional: str | None = None
+
+
+class SyncAudit(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    ts: datetime = Field(default_factory=datetime.utcnow)
+    action: str
+    profile_id: int | None = Field(default=None, index=True)
+    device_id: str = Field(default='host-local', index=True)
+    status: str = 'ok'
+    detail_json: str = '{}'
+
+
+class LanSyncPairing(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    code: str = Field(index=True, unique=True)
+    room_id: int = Field(index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    expires_at: datetime
+    used_at: datetime | None = None
+    status: str = 'active'
+    scope: str = 'learning_record_only'
+    range_json: str = '{}'
 
 class LanAuthToken(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

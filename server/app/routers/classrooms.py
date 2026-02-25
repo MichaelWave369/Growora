@@ -40,7 +40,7 @@ def create_classroom(body: ClassroomBody, request: Request, session: Session = D
     pid = resolve_profile_id(session, x_growora_profile, request)
     c = Classroom(profile_id_owner=pid, name=body.name)
     session.add(c); session.commit(); session.refresh(c)
-    session.add(ClassroomMember(classroom_id=c.id, profile_id=pid, role='facilitator')); session.commit()
+    session.add(ClassroomMember(classroom_id=c.id, profile_id=pid, role='facilitator')); session.commit(); session.refresh(c)
     return c
 
 
@@ -96,7 +96,7 @@ def start(classroom_id: int, body: StartBody, request: Request, session: Session
     if not course: raise HTTPException(404, 'Course not found')
     s = ClassroomSession(classroom_id=classroom_id, course_id=body.course_id, mode=body.mode, title=body.title, agenda_json=json.dumps(body.agenda))
     session.add(s); session.commit(); session.refresh(s)
-    session.add(ClassroomSessionMember(session_id=s.id, profile_id=pid)); session.commit()
+    session.add(ClassroomSessionMember(session_id=s.id, profile_id=pid)); session.commit(); session.refresh(s)
     return s
 
 

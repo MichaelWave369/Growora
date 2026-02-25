@@ -17,6 +17,11 @@ class Settings(BaseSettings):
     growora_lan_max_clients: int = 12
     growora_lan_trusted_subnets: str = ""
     growora_lan_rate_limit: int = 20
+    growora_sync_max_zip_mb: int = 20
+    growora_sync_max_events: int = 5000
+    growora_sync_default_days: int = 30
+    growora_sync_default_events: int = 1000
+    growora_sync_kdf_iterations: int = 390000
 
     growora_llm_provider: str = "none"
     growora_ollama_url: str = "http://localhost:11434"

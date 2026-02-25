@@ -37,7 +37,10 @@ def generate(body: GenBody, request: Request, session: Session = Depends(get_ses
     items=[]
     for i in range(max(1,min(10,body.count))):
         d = Microdrill(profile_id=pid, course_id=body.course_id, concept_id=body.concept_id, kind='recall', prompt=f"Explain {c.title} in one sentence ({i+1})", answer_key_json=json.dumps({'rubric':'mentions core idea'}), difficulty=body.difficulty)
-        session.add(d); session.commit(); session.refresh(d); items.append(d)
+        session.add(d); items.append(d)
+    session.commit()
+    for d in items:
+        session.refresh(d)
     return items
 
 

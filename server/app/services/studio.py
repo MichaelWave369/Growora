@@ -1,6 +1,9 @@
 import json
 from pathlib import Path
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except Exception:  # optional dependency in constrained envs
+    PdfReader = None
 from sqlmodel import Session
 
 from app.models import Course, Lesson, Week
@@ -49,6 +52,8 @@ def import_markdown(session: Session, profile_id: int, title: str, markdown_text
 def import_pdf_outline(session: Session, profile_id: int, title: str, path: Path):
     text = ''
     try:
+        if PdfReader is None:
+            raise RuntimeError('pypdf missing')
         reader = PdfReader(str(path))
         text = '\n'.join((p.extract_text() or '') for p in reader.pages[:10])
     except Exception:

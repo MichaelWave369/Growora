@@ -268,6 +268,7 @@ export function LanHostPage() {
   const [rooms, setRooms] = useState<any[]>([])
   const [selected, setSelected] = useState<any>()
   const [qr, setQr] = useState('')
+  const [pairing, setPairing] = useState<any>()
 
   const load = async () => {
     setNet(await api<any>('/api/network/addresses'))
@@ -289,12 +290,17 @@ export function LanHostPage() {
     if(!selected?.room_code) return
     setSelected(await api<any>(`/api/lan/rooms/${selected.room_code}/rotate`, {method:'POST'}))
   }
+  const createPairing = async () => {
+    if(!selected?.room_code) return
+    const fd = new FormData(); fd.append('room_code', selected.room_code); fd.append('scope','learning_record_only'); fd.append('days','30'); fd.append('events','500')
+    const r = await fetch('/api/lan/sync/pairing/create',{method:'POST', body:fd}); setPairing(await r.json())
+  }
 
   return <div><h2>LAN Host Mode</h2>
     <p style={{color:'#b91c1c'}}>Warning: LAN mode exposes host to your Wi-Fi network. Use private networks only.</p>
     <pre>{JSON.stringify(net,null,2)}</pre>
     <button onClick={createRoom}>Create LAN room</button>
-    {selected && <div><p>Join URL: {selected.join_url}</p><button onClick={()=>navigator.clipboard.writeText(selected.join_url)}>Copy join link</button><button onClick={rotate}>Rotate room code</button>{qr && <img src={qr} alt='qr' style={{width:220}}/>}</div>}
+    {selected && <div><p>Join URL: {selected.join_url}</p><button onClick={()=>navigator.clipboard.writeText(selected.join_url)}>Copy join link</button><button onClick={rotate}>Rotate room code</button><button onClick={createPairing}>Request Sync From Learner</button>{pairing && <pre>{JSON.stringify(pairing,null,2)}</pre>}{qr && <img src={qr} alt='qr' style={{width:220}}/>}</div>}
   </div>
 }
 
@@ -325,6 +331,8 @@ export function LanSessionPage() {
   const [connected, setConnected] = useState(false)
   const [draw, setDraw] = useState(true)
   const [text, setText] = useState('')
+  const [pairCode, setPairCode] = useState('')
+  const [syncPass, setSyncPass] = useState('')
   const wsRef = (globalThis as any).__lanws || ((globalThis as any).__lanws = { current: null as WebSocket | null })
 
   useEffect(()=>{
@@ -339,13 +347,79 @@ export function LanSessionPage() {
   },[roomCode])
 
   const send = (type:string,payload:any)=> wsRef.current?.send(JSON.stringify({type, ts:new Date().toISOString(), room_code: roomCode, payload}))
+  const sendSync = async (f?: File) => {
+    if(!f || !pairCode) return
+    const fd = new FormData(); fd.append('room_code', roomCode || ''); fd.append('pairing_code', pairCode); fd.append('passphrase', syncPass); fd.append('file', f)
+    const r = await fetch('/api/lan/sync/upload', {method:'POST', body:fd, headers:{Authorization:`Bearer ${localStorage.getItem('growora_lan_token')||''}`}})
+    alert(await r.text())
+  }
 
   return <div><h2>LAN Learner Session {roomCode}</h2><p>{connected ? 'Connected' : 'Disconnected'}</p>
     <button onClick={()=>send('slide_present',{deck_id:1,slide_index:1})}>Sync slide</button>
     <button disabled={!draw} onClick={()=>send('whiteboard_draw',{stroke:[[1,2],[3,4]]})}>Draw stroke</button>
     <button onClick={()=>send('livequiz_submit',{answers:['A']})}>Submit quiz</button>
     <textarea value={text} onChange={e=>setText(e.target.value)} placeholder='Teach-back response'/><button onClick={()=>send('teachback_submit',{response:text})}>Submit teach-back</button>
+    <h4>Send progress to host</h4><input value={pairCode} onChange={e=>setPairCode(e.target.value)} placeholder='Pairing code'/><input type='password' value={syncPass} onChange={e=>setSyncPass(e.target.value)} placeholder='Passphrase'/><input type='file' accept='.zip,.growora-sync.zip' onChange={e=>sendSync(e.target.files?.[0])}/>
     <button onClick={()=>{ localStorage.removeItem('growora_lan_token'); location.href='/' }}>Disconnect</button>
     <pre>{JSON.stringify(msgs,null,2)}</pre>
+  </div>
+}
+
+export function SyncSettingsPage() {
+  const [profileId, setProfileId] = useState('1')
+  const [scope, setScope] = useState('learning_record_only')
+  const [days, setDays] = useState('30')
+  const [events, setEvents] = useState('1000')
+  const [passphrase, setPassphrase] = useState('')
+  const [importPass, setImportPass] = useState('')
+  const [result, setResult] = useState<any>()
+  const [audit, setAudit] = useState<any[]>([])
+
+  const loadAudit = ()=> api<any[]>('/api/sync/audit').then(setAudit).catch(()=>{})
+  useEffect(()=>{ loadAudit() },[])
+
+  const exportPkg = async ()=> {
+    const fd = new FormData()
+    fd.append('profile_id', profileId)
+    fd.append('scope', scope)
+    fd.append('days', days)
+    fd.append('events', events)
+    fd.append('passphrase', passphrase)
+    const r = await fetch('/api/sync/export', { method:'POST', body: fd })
+    if(!r.ok) return alert(await r.text())
+    const blob = await r.blob()
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `growora-${profileId}.growora-sync.zip`
+    a.click()
+    loadAudit()
+  }
+
+  const importPkg = async (f?: File)=> {
+    if(!f) return
+    const fd = new FormData()
+    fd.append('file', f)
+    fd.append('passphrase', importPass)
+    const r = await fetch('/api/sync/import', { method:'POST', body: fd })
+    const j = await r.json()
+    setResult(j)
+    loadAudit()
+  }
+
+  return <div><h2>Offline Sync</h2>
+    <p>Encrypted Triad369 sync package export/import. Keep passphrases private.</p>
+    <h4>Export</h4>
+    <input value={profileId} onChange={e=>setProfileId(e.target.value)} placeholder='Profile ID'/>
+    <select value={scope} onChange={e=>setScope(e.target.value)}><option>learning_record_only</option><option>include_sessions</option><option>include_notes</option></select>
+    <input value={days} onChange={e=>setDays(e.target.value)} placeholder='Days'/>
+    <input value={events} onChange={e=>setEvents(e.target.value)} placeholder='Events limit'/>
+    <input type='password' value={passphrase} onChange={e=>setPassphrase(e.target.value)} placeholder='Passphrase'/>
+    <button onClick={exportPkg}>Export .growora-sync.zip</button>
+    <h4>Import</h4>
+    <input type='password' value={importPass} onChange={e=>setImportPass(e.target.value)} placeholder='Passphrase'/>
+    <input type='file' accept='.zip,.growora-sync.zip' onChange={e=>importPkg(e.target.files?.[0])}/>
+    <pre>{JSON.stringify(result,null,2)}</pre>
+    <h4>Sync Audit</h4>
+    <pre>{JSON.stringify(audit,null,2)}</pre>
   </div>
 }

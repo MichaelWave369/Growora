@@ -20,6 +20,7 @@ from app.routers import (
     sessions,
     settings_network,
     studio,
+    sync,
     system,
     tutor,
 )
@@ -52,6 +53,7 @@ app.include_router(drills.router)
 app.include_router(graph.router)
 app.include_router(classrooms.router)
 app.include_router(lan.router)
+app.include_router(sync.router)
 
 
 @app.on_event("startup")

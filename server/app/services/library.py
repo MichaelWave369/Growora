@@ -3,7 +3,10 @@ import json
 from pathlib import Path
 
 from fastapi import UploadFile
-from pypdf import PdfReader
+try:
+    from pypdf import PdfReader
+except Exception:  # optional dependency in constrained envs
+    PdfReader = None
 from sqlmodel import Session
 
 from app.db import engine
@@ -23,6 +26,8 @@ def _extract_text(path: Path, mime: str) -> tuple[list[tuple[int, str]], str | N
         if mime in {"text/plain", "text/markdown"} or path.suffix.lower() in {".txt", ".md"}:
             return [(0, path.read_text(encoding="utf-8", errors="ignore"))], None
         if mime == "application/pdf" or path.suffix.lower() == ".pdf":
+            if PdfReader is None:
+                return [], "PDF extraction unavailable: pypdf not installed"
             reader = PdfReader(str(path))
             return [(i + 1, p.extract_text() or "") for i, p in enumerate(reader.pages)], None
         return [], "Unsupported file type"

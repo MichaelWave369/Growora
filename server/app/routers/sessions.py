@@ -39,7 +39,7 @@ def start_session(body: StartBody, request: Request, session: Session = Depends(
         raise HTTPException(404, 'Course not found')
     s = StudySession(profile_id=profile_id, course_id=body.course_id, lesson_id_optional=body.lesson_id_optional, planned_minutes=body.planned_minutes, mode=body.mode)
     session.add(s); session.commit(); session.refresh(s)
-    session.add(SessionEvent(session_id=s.id, type='start', payload_json=json.dumps({'mode': body.mode}))); session.commit()
+    session.add(SessionEvent(session_id=s.id, type='start', payload_json=json.dumps({'mode': body.mode}))); session.commit(); session.refresh(s)
     return s
 
 

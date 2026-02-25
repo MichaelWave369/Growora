@@ -13,8 +13,8 @@ router = APIRouter(prefix='/api', tags=['backup'])
 
 
 @router.post('/backup/create', dependencies=[Depends(require_local_admin)])
-def backup_create(include_attachments: bool = Form(False), include_exports: bool = Form(True)):
-    p = create_backup(include_attachments, include_exports)
+def backup_create(include_attachments: bool = Form(False), include_exports: bool = Form(True), include_sync_packages: bool = Form(True)):
+    p = create_backup(include_attachments, include_exports, include_sync_packages)
     return {'file': str(p)}
 
 

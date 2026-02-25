@@ -7,3 +7,5 @@ dist/
 server/data/*
 !server/data/.gitkeep
 .pytest_cache/
+
+sync_inbox/

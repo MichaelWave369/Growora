@@ -122,3 +122,35 @@ Growora can host a classroom on your local Wi-Fi so multiple devices can join.
 ### Local-only scripts (existing)
 - Unix: `run_unix.sh`
 - Windows: `run_windows.bat`
+
+## Offline Sync (v0.7)
+
+Growora supports **encrypted offline sync packages** (`*.growora-sync.zip`) so learning records can move between devices with no cloud.
+
+### What sync export includes
+- Profile metadata (name/role only, no secrets)
+- Course summaries
+- Learning events (append-only)
+- Mastery snapshots
+- Flashcard review logs
+- Optional session/classroom events (`scope=include_sessions`)
+- Certificates
+
+### Export / import steps
+1. Open `/settings/sync`.
+2. Enter profile ID, scope, bounds (days/events), and passphrase.
+3. Export package.
+4. On target host, import package with same passphrase.
+5. Check merge summary + sync audit list.
+
+### Privacy + safety
+- No telemetry, no cloud upload.
+- Manifest is plain JSON but excludes sensitive learning content.
+- Payload is encrypted and integrity-protected.
+- Wrong passphrase or tampered payload is rejected.
+
+### LAN mesh sync (optional)
+- Host creates one-time pairing code in LAN host page.
+- Learner uses pairing code in LAN session page and uploads sync package.
+- Pairing code is single-use and expires in 5 minutes.
+- Use private/home Wi-Fi only; avoid public networks.
