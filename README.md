@@ -1,4 +1,4 @@
-# Growora v0.4 — Mastery Graph + Skill Map + Studio + Offline Pro
+# Growora v0.9.1-rc1 — Offline Tutor + Selective Sync + Family Share + Local Marketplace
 
 Growora is an offline-first personal tutor that turns natural language goals into adaptive learning plans, concept mastery maps, and guided study sessions.
 
@@ -21,7 +21,7 @@ Growora is an offline-first personal tutor that turns natural language goals int
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r server/requirements.txt
-cd web && npm install && cd ..
+cd web && npm ci && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
 # another terminal
 cd web && npm run dev
@@ -32,7 +32,7 @@ cd web && npm run dev
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r server\requirements.txt
-cd web && npm install && cd ..
+cd web && npm ci && cd ..
 uvicorn app.main:app --reload --port 8000 --app-dir server
 :: another terminal
 cd web && npm run dev
@@ -196,3 +196,28 @@ Use **Preview** first to verify counts and estimated size before exporting.
 ### Optional LAN catalog
 - Host can explicitly enable LAN catalog sharing.
 - Approved LAN clients can list/request shared package metadata only with token auth.
+
+
+## Quick Start (Release Candidate v0.9.1-rc1)
+
+1. Install backend deps: `pip install -r server/requirements.txt`
+2. Install frontend deps: `cd web && npm ci`
+3. Start API: `uvicorn app.main:app --reload --port 8000 --app-dir server`
+4. Start UI in another terminal: `cd web && npm run dev`
+5. Open `http://localhost:5173` and verify profile -> intake -> course -> session.
+
+## Release Checklist
+
+- Backend compile: `python -m compileall server/app`
+- Backend tests: `PYTHONPATH=server pytest -q`
+- Frontend build: `cd web && npm run build`
+- Release zip: `python scripts/make_release_zip.py`
+- Artifact expected at `dist/growora-github-ready.zip`
+
+## LAN Safety Defaults
+
+- Default bind host remains `127.0.0.1` in local mode.
+- LAN mode is explicit opt-in via `GROWORA_NETWORK_MODE=lan`.
+- Use only trusted/private networks for LAN hosting and pairing workflows.
+
+For release highlights and known limits, see `RELEASE_NOTES.md`.

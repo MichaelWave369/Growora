@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     app_name: str = "Growora"
-    app_version: str = "0.6.0"
+    app_version: str = "0.9.1"
     db_path: str = "server/data/growora.db"
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
